@@ -1208,7 +1208,7 @@ function _onAllPartsLoaded() {
 
 setStatus('Carregando modelo 3D…');
 _partFiles.forEach(name => {
-  gltfLoader.load(`objects/${name}.glb`, gltf => {
+  gltfLoader.load(`${name}.glb`, gltf => {
     gltf.scene.traverse(child => {
       if (!child.isMesh) return;
       child.material = partMats[_partMatKey[name]];
