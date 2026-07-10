@@ -1,0 +1,2058 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TriSuit Studio 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#00c853;--green-dark:#1a6b3a;--green-light:rgba(0,200,83,0.14);
+  --pink:#e8307a;--pink-light:rgba(232,48,122,0.14);
+  --surface:rgba(20,20,32,0.45);--surface2:rgba(255,255,255,0.07);
+  --border:rgba(0,0,0,0.09);--border-w:rgba(255,255,255,0.18);
+  --text:#f0f0ee;--muted:#d8d8d8;--muted2:#b8b8b8;
+}
+html,body{height:100%;overflow:hidden;background:#12121e;font-family:'Montserrat',sans-serif;color:var(--text);-webkit-font-smoothing:antialiased}
+#threeCanvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+/* ── Status ── */
+#statusBar{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--surface);backdrop-filter:blur(14px);border-radius:20px;padding:5px 16px;font-size:11px;font-weight:600;color:var(--muted);z-index:30;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
+#statusBar.vis{opacity:1}
+
+/* ── Code panel (top right) ── */
+.code-panel{position:fixed;top:14px;right:14px;z-index:28;display:flex;flex-direction:row-reverse;align-items:flex-start;overflow:hidden;background:var(--surface);backdrop-filter:blur(18px);border-radius:14px;border:1px solid var(--border-w);box-shadow:0 4px 24px rgba(0,0,0,0.18);transition:width .24s cubic-bezier(.4,0,.2,1),height .24s cubic-bezier(.4,0,.2,1);width:46px;height:46px}
+.code-panel.cp-open{width:306px;height:auto}
+.cp-trigger{width:46px;min-width:46px;height:46px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;background:transparent;color:var(--muted);flex-shrink:0}
+.cp-trigger:hover{color:var(--green)}
+.cp-trigger svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.cp-inner{width:260px;min-width:260px;padding:10px 14px 12px;opacity:0;pointer-events:none;transition:opacity .15s}
+.code-panel.cp-open .cp-inner{opacity:1;pointer-events:auto;transition:opacity .15s .1s}
+.cp-label{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted2);margin-bottom:4px}
+.cp-code{font-size:26px;font-weight:900;letter-spacing:3px;color:var(--text);line-height:1;margin-bottom:8px}
+.cp-btns{display:flex;gap:6px}
+.cp-btn{flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);background:rgba(255,255,255,0.08);color:var(--text);font-size:10px;font-weight:700;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .18s}
+.cp-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-light)}
+.cp-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+
+/* ── Zoom widget ── */
+.zoom-widget{position:fixed;bottom:88px;right:16px;z-index:25;display:flex;flex-direction:column;gap:4px;background:var(--surface);backdrop-filter:blur(18px);border:1px solid var(--border-w);border-radius:16px;padding:6px;box-shadow:0 4px 20px rgba(0,0,0,0.15);transition:opacity .28s ease}
+.zw-btn{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;background:transparent;color:var(--text);transition:background .15s,color .15s}
+.zw-btn:hover{background:var(--green-light);color:var(--green)}
+.zw-btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.zw-div{height:1px;background:var(--border);margin:1px 4px}
+.zw-label{font-size:8px;font-weight:800;color:var(--muted2);text-align:center;letter-spacing:.5px;padding:1px 0}
+
+/* ── Reset confirm ── */
+.reset-confirm{display:none;position:absolute;right:calc(100% + 8px);top:50%;transform:translateY(-50%);background:var(--surface);backdrop-filter:blur(14px);border:1px solid var(--border-w);border-radius:12px;padding:7px 10px;white-space:nowrap;font-size:10px;font-weight:700;color:var(--text);gap:8px;align-items:center}
+.reset-confirm.vis{display:flex}
+.rc-yes{width:24px;height:24px;border-radius:50%;border:none;background:var(--pink);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.rc-yes svg{width:12px;height:12px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+/* ── Floating reset button ── */
+#resetBtnWrap{position:fixed;top:122px;right:14px;z-index:28}
+#resetFloatBtn{width:46px;height:46px;border-radius:14px;background:var(--surface);backdrop-filter:blur(18px);border:1px solid var(--border-w);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);box-shadow:0 4px 24px rgba(0,0,0,0.18);transition:color .15s,border-color .15s}
+#resetFloatBtn:hover{color:var(--pink);border-color:rgba(232,48,122,0.4)}
+#resetFloatBtn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Bottom panel ── */
+.bottom-panel-wrap{position:fixed;bottom:0;left:0;right:0;z-index:20}
+.bottom-sheet{background:var(--surface);backdrop-filter:blur(20px);border-radius:20px 20px 0 0;border:1px solid var(--border-w);border-bottom:none;max-height:0;overflow:hidden;transition:max-height .32s cubic-bezier(.4,0,.2,1)}
+.bottom-sheet.bs-open{max-height:68vh}
+.bs-handle{width:36px;height:4px;border-radius:2px;background:rgba(0,0,0,0.16);margin:10px auto 0;cursor:pointer}
+.bs-content{padding:0 16px 20px;max-height:calc(68vh - 28px);overflow-y:auto;scrollbar-width:thin}
+.bottom-nav{display:flex;align-items:center;justify-content:space-around;padding:5px 8px;height:62px;background:var(--surface);backdrop-filter:blur(20px);border-top:1px solid var(--border-w)}
+.bn-btn{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1.5px solid transparent;background:transparent;color:#e8e8e8;transition:all .15s}
+.bn-btn:hover{background:var(--green-light);color:var(--green)}
+.bn-btn.active{background:var(--green-light);border-color:rgba(0,200,83,0.38);color:var(--green)}
+.bn-btn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.jp-swatch{width:100%;height:14px;border-radius:6px;border:1.5px solid rgba(255,255,255,0.15);background:#888;flex-shrink:0}
+.jps-section{display:none}.jps-section.jss-active{display:block}
+.jps-label{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted2);margin-bottom:6px}
+
+/* ── Section ── */
+.lp-section{display:none;padding:14px 0}
+.lp-section.lp-active{display:block}
+.sec-title{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted2);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Model cards ── */
+.model-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.model-card{border:1.5px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.08);cursor:pointer;transition:all .2s;overflow:hidden;position:relative}
+.model-card:hover{border-color:var(--green);background:var(--green-light)}
+.model-card.active{border-color:var(--green);background:var(--green-light);box-shadow:0 0 0 3px rgba(0,200,83,0.15)}
+.model-card-check{position:absolute;top:7px;left:7px;width:15px;height:15px;border-radius:50%;background:var(--green);display:none;align-items:center;justify-content:center}
+.model-card-check svg{width:8px;height:8px;stroke:#fff;stroke-width:3;fill:none}
+.model-card.active .model-card-check{display:flex}
+.model-badge{position:absolute;top:7px;right:7px;font-size:8px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;padding:2px 6px;border-radius:4px}
+.model-body{padding:10px 10px 8px}
+.model-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;margin-bottom:7px}
+.model-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px}
+.model-sub{font-size:9px;color:var(--muted);line-height:1.4}
+.model-feats{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.mfeat{font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 5px;border-radius:3px;background:rgba(0,0,0,0.06);color:var(--muted)}
+.model-card.active .mfeat{background:rgba(0,200,83,0.14);color:var(--green)}
+
+/* ── Colors — unified swatch style ── */
+.swatches,.color-dots,.dot-row,.collar-presets,.shorts-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.sw,.cdot,.cswatch,.dot{width:26px;height:26px;border-radius:7px;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0;position:relative}
+.sw:hover,.cdot:hover,.cswatch:hover,.dot:hover{transform:scale(1.1)}
+.sw.active,.cdot.active,.cswatch.active,.dot.active{border-color:var(--green)!important;transform:scale(1.1);box-shadow:0 0 0 2px rgba(0,200,83,0.22)}
+.cdot.active::after,.cswatch.active::after{display:none}
+.rainbow{background:conic-gradient(hsl(0,100%,50%),hsl(60,100%,50%),hsl(120,100%,50%),hsl(180,100%,50%),hsl(240,100%,50%),hsl(300,100%,50%),hsl(360,100%,50%))!important;border-width:0!important}
+.dot-wrap{display:flex;flex-direction:column;align-items:center;gap:2px}
+.dot-lbl{font-size:8px;color:var(--muted2);font-weight:600;text-align:center;max-width:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.color-pick{width:100%;height:28px;border:1.5px solid var(--border);border-radius:7px;cursor:pointer;background:transparent;margin-top:4px;padding:1px 2px}
+
+/* ── CMYK ── */
+.cmyk-block{background:rgba(0,0,0,0.1);border-radius:10px;border:1px solid var(--border);padding:12px;margin-top:8px}
+.cmyk-title{font-size:10px;font-weight:900;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.cmyk-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.cmyk-row{display:flex;align-items:center;gap:8px;padding:2px 0}
+.cmyk-letter{font-size:13px;font-weight:900;min-width:14px;text-align:center}
+.cmyk-val{font-size:11px;font-weight:700;min-width:34px;text-align:right}
+.cmyk-range{flex:1;height:5px;border-radius:3px;-webkit-appearance:none;appearance:none;outline:none;cursor:pointer}
+.cmyk-range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:2.5px solid #888;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.cmyk-c{background:linear-gradient(90deg,#fff,#00e5ff)} .cmyk-c::-webkit-slider-thumb{border-color:#00b8d9}
+.cmyk-m{background:linear-gradient(90deg,#fff,#e8307a)} .cmyk-m::-webkit-slider-thumb{border-color:#e8307a}
+.cmyk-y{background:linear-gradient(90deg,#fff,#ffe600)} .cmyk-y::-webkit-slider-thumb{border-color:#c5a800}
+.cmyk-k{background:linear-gradient(90deg,#eee,#111)}    .cmyk-k::-webkit-slider-thumb{border-color:#444}
+.lc{color:#00b8d9}.lm{color:#e8307a}.ly{color:#c5a800}.lk{color:#444}
+.cmyk-preview{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.cmyk-swatch{width:32px;height:32px;border-radius:7px;border:1.5px solid var(--border);flex-shrink:0}
+.cmyk-hex{font-size:18px;font-weight:900;letter-spacing:1px;color:var(--text);flex:1}
+.cmyk-hex small{display:block;font-size:8px;font-weight:600;letter-spacing:1.5px;color:var(--muted2);text-transform:uppercase;margin-bottom:2px}
+
+/* ── Pattern pills ── */
+.pattern-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px}
+.ppill{padding:7px 4px;background:rgba(255,255,255,0.08);border:1.5px solid var(--border);border-radius:6px;cursor:pointer;text-align:center;font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--muted);transition:all .18s}
+.ppill:hover,.ppill.active{border-color:var(--green);color:var(--green);background:var(--green-light)}
+
+
+/* ── Upload zone ── */
+.upload-zone{border:1.5px dashed var(--border);border-radius:10px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .22s;position:relative;overflow:hidden;background:rgba(255,255,255,0.05)}
+.upload-zone:hover,.upload-zone.has-file{border-color:var(--green);background:var(--green-light)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-title{font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--text)}
+.upload-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.file-badge{display:inline-flex;align-items:center;gap:5px;background:var(--green-light);border:1px solid var(--green);border-radius:5px;padding:3px 8px;margin-top:6px;font-size:10px;color:var(--green);font-weight:700}
+
+/* ── Controls ── */
+.ctrl-row{display:flex;align-items:center;gap:8px;padding:5px 0}
+.ctrl-lbl{font-size:10px;color:var(--muted);white-space:nowrap;min-width:60px}
+.ctrl-val{font-size:11px;font-weight:700;color:var(--green);min-width:34px;text-align:right}
+.ctrl-num{width:46px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:5px;color:inherit;font-size:11px;font-weight:600;padding:2px 4px;text-align:center;-moz-appearance:textfield;appearance:textfield;flex-shrink:0}
+.ctrl-num::-webkit-outer-spin-button,.ctrl-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:3px;background:rgba(0,0,0,0.12);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);cursor:pointer;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+
+/* ── Text input ── */
+.text-inp{width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid var(--border);background:rgba(255,255,255,0.08);font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;outline:none;transition:border-color .15s;color:var(--text)}
+.text-inp:focus{border-color:var(--green)}
+.text-inp::placeholder{font-weight:400;letter-spacing:.5px;text-transform:none;opacity:.5;color:var(--muted)}
+
+/* ── Name pos buttons ── */
+.pos-row{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.npb{height:36px;flex:1;border-radius:9px;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--border);background:rgba(255,255,255,0.06);cursor:pointer;transition:all .15s;color:var(--text)}
+.npb.active{background:var(--green-light);border-color:rgba(0,200,83,0.45);color:var(--green)}
+.npb:hover{border-color:var(--green);color:var(--green)}
+.move-pad{display:grid;grid-template-columns:repeat(3,32px);grid-template-rows:repeat(3,32px);gap:4px;margin-top:10px}
+.mv-btn{width:32px;height:32px;border-radius:8px;border:1.5px solid var(--border);background:rgba(255,255,255,0.06);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;font-size:13px;padding:0}
+.mv-btn:hover{border-color:var(--green);color:var(--green);background:var(--green-light)}
+.mv-btn.mv-center{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:var(--muted)}
+.mv-btn.mv-center.mv-on{border-color:var(--pink);background:rgba(232,48,122,0.18);color:var(--pink);box-shadow:0 0 0 2px rgba(232,48,122,0.22)}
+.mv-btn.mv-empty{visibility:hidden;pointer-events:none}
+.center-btns{display:flex;gap:5px;margin-top:6px}
+.cb{flex:1;height:28px;border-radius:8px;border:1.5px solid var(--border);background:rgba(255,255,255,0.06);color:var(--text);cursor:pointer;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px;transition:all .15s}
+.cb:hover{border-color:var(--green);color:var(--green);background:var(--green-light)}
+
+/* ── Color row ── */
+.color-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(0,0,0,0.07);border-radius:9px;margin-top:6px}
+.color-row label{font-size:11px;font-weight:600;flex:1}
+.color-row input[type=color]{width:30px;height:30px;border:none;border-radius:7px;cursor:pointer;background:none;padding:0}
+
+/* ── Btn ── */
+.btn-sm{padding:7px 14px;border-radius:8px;border:1.5px solid var(--border);background:rgba(255,255,255,0.06);color:var(--text);font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:5px;justify-content:center}
+.btn-sm:hover{border-color:var(--green);color:var(--green);background:var(--green-light)}
+
+/* ── Light widget (inside zoom widget) ── */
+.zw-light-slider{
+  writing-mode:vertical-lr;direction:rtl;
+  -webkit-appearance:none;appearance:none;
+  width:5px;height:80px;background:rgba(0,0,0,0.15);
+  border-radius:3px;outline:none;cursor:pointer;
+  accent-color:var(--green);margin:4px auto;display:block;
+}
+.zw-light-slider::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--green);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.2);cursor:pointer}
+.zw-light-input{
+  width:36px;padding:4px 2px;border-radius:7px;
+  border:1.5px solid var(--border);background:rgba(255,255,255,0.08);
+  font-family:'Montserrat',sans-serif;font-size:10px;font-weight:800;
+  color:var(--text);text-align:center;outline:none;
+  transition:border-color .15s;
+  -moz-appearance:textfield;appearance:textfield;
+}
+.zw-light-input::-webkit-inner-spin-button,.zw-light-input::-webkit-outer-spin-button{-webkit-appearance:none}
+.zw-light-input:focus{border-color:var(--green)}
+
+@media(min-width:641px){
+  .bottom-panel-wrap{left:50%;right:auto;width:calc(100vw/3);transform:translateX(-50%);border-radius:16px 16px 0 0;overflow:hidden}
+}
+@media(max-width:640px){
+  .bottom-sheet.bs-open{max-height:74vh}
+  .bs-content{max-height:calc(74vh - 28px)}
+  .zoom-widget{bottom:72px;right:10px}
+  body:has(.bottom-sheet.bs-open) .zoom-widget{opacity:0;pointer-events:none}
+  #zwZoomIn,#zwZoomOut,#zwZoomDiv{display:none}
+}
+
+/* ── Floating lighting button ── */
+#lightFloatBtn{position:fixed;top:68px;right:14px;z-index:28;width:46px;height:46px;border-radius:14px;background:var(--surface);backdrop-filter:blur(18px);border:1px solid var(--border-w);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);box-shadow:0 4px 24px rgba(0,0,0,0.18);transition:color .15s,border-color .15s}
+#lightFloatBtn:hover,#lightFloatBtn.lf-active{color:var(--green);border-color:rgba(0,200,83,0.4)}
+#lightFloatBtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* ── Lighting popup ── */
+#lightPopup{position:fixed;top:68px;right:68px;z-index:55;width:276px;background:rgba(14,14,26,0.97);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.16);border-radius:16px;padding:14px;box-shadow:0 12px 48px rgba(0,0,0,0.6);opacity:0;pointer-events:none;transform:scale(0.92) translateX(10px);transition:opacity .17s,transform .17s cubic-bezier(.4,0,.2,1)}
+#lightPopup.lp-vis{opacity:1;pointer-events:auto;transform:scale(1) translateX(0)}
+.lp-sec-hdr{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted2);padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08)}
+
+/* ── Part context popup ── */
+#partPopup{position:fixed;z-index:60;min-width:176px;background:rgba(14,14,26,0.96);backdrop-filter:blur(24px);border:1px solid rgba(255,255,255,0.16);border-radius:16px;padding:12px;box-shadow:0 12px 48px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.04);opacity:0;pointer-events:none;transform:scale(0.90) translateY(10px);transition:opacity .17s,transform .17s cubic-bezier(.4,0,.2,1)}
+#partPopup.pp-vis{opacity:1;pointer-events:auto;transform:scale(1) translateY(0)}
+.pp-header{font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted2);padding-bottom:9px;margin-bottom:9px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.pp-grid{display:flex;flex-wrap:wrap;gap:6px}
+.pp-btn{flex:1 1 70px;min-width:68px;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 8px 9px;border-radius:10px;border:1.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.06);color:var(--text);cursor:pointer;font-family:'Montserrat',sans-serif;font-size:9px;font-weight:700;letter-spacing:.5px;transition:all .15s;white-space:nowrap}
+.pp-btn:hover{border-color:rgba(0,200,83,0.55);color:var(--green);background:var(--green-light)}
+.pp-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#editConfirmBar{position:fixed;top:56px;left:50%;transform:translateX(-50%) translateY(-10px);z-index:50;display:flex;align-items:center;gap:8px;background:rgba(14,14,26,0.95);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.15);border-radius:24px;padding:7px 10px 7px 14px;box-shadow:0 8px 32px rgba(0,0,0,0.5);opacity:0;pointer-events:none;transition:opacity .22s,transform .22s cubic-bezier(.4,0,.2,1);white-space:nowrap}
+#editConfirmBar.ecb-vis{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+.ecb-label{font-size:10px;font-weight:700;color:var(--muted2);letter-spacing:.5px;margin-right:4px}
+.ecb-cancel{height:28px;padding:0 11px;border-radius:14px;border:1.5px solid rgba(232,48,122,0.4);background:rgba(232,48,122,0.1);color:var(--pink);font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:all .15s}
+.ecb-cancel:hover{background:rgba(232,48,122,0.22);border-color:var(--pink)}
+.ecb-confirm{height:28px;padding:0 13px;border-radius:14px;border:none;background:var(--green);color:#fff;font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;cursor:pointer;transition:background .15s}
+.ecb-confirm:hover{background:#00a844}
+</style>
+</head>
+<body>
+
+<canvas id="threeCanvas"></canvas>
+<div id="statusBar"></div>
+
+<!-- Reset float button -->
+<div id="resetBtnWrap">
+  <div class="reset-confirm" id="resetConfirm">
+    <span>Resetar?</span>
+    <button class="rc-yes" onclick="confirmReset()"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></button>
+  </div>
+  <button id="resetFloatBtn" onclick="tryReset()" title="Resetar">
+    <svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.8"/></svg>
+  </button>
+</div>
+
+<!-- Lighting float button -->
+<button id="lightFloatBtn" onclick="toggleLightPopup()" title="Iluminação">
+  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+</button>
+
+<!-- Lighting popup -->
+<div id="lightPopup">
+  <div class="lp-sec-hdr">Iluminação</div>
+  <div class="pattern-grid" id="lightPresetGrid"></div>
+  <div class="ctrl-row" style="margin-top:10px">
+    <span class="ctrl-lbl">Luz</span>
+    <input type="range" min="0" max="300" value="100" id="lpLightSlider" oninput="setLightIntensity(this.value)">
+    <span class="ctrl-val" id="lpLightVal">100%</span>
+  </div>
+  <div class="lp-sec-hdr" style="margin-top:14px">HDRI</div>
+  <label class="upload-zone" style="cursor:pointer;padding:10px 12px">
+    <input type="file" accept=".hdr" style="display:none" onchange="if(this.files[0])loadHDRI(this.files[0])">
+    <div style="display:flex;align-items:center;gap:8px;opacity:.55">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" style="width:18px;height:18px;flex-shrink:0"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <span style="font-size:12px">Carregar .hdr</span>
+    </div>
+    <div id="hdriBadge" style="display:none;align-items:center;gap:6px;margin-top:5px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" style="width:10px;height:10px"><polyline points="20 6 9 17 4 12"/></svg>
+      <span id="hdriFileName" style="font-size:11px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <button onclick="event.preventDefault();removeHDRI()" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:0">✕</button>
+    </div>
+  </label>
+  <div class="ctrl-row" style="margin-top:8px">
+    <span class="ctrl-lbl">Reflex.</span>
+    <input type="range" min="0" max="200" value="100" oninput="setHDRIIntensity(this.value)">
+    <span class="ctrl-val" id="hdriIntensityVal">100%</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+    <input type="checkbox" id="hdriAsBg" onchange="toggleHDRIBg(this.checked)" style="accent-color:var(--green)">
+    <label for="hdriAsBg" style="font-size:12px;opacity:.75;cursor:pointer">Usar HDRI como fundo</label>
+  </div>
+</div>
+
+<!-- Part context popup -->
+<div id="partPopup">
+  <div class="pp-header" id="ppHeader"></div>
+  <div class="pp-grid" id="ppGrid"></div>
+</div>
+
+<!-- Edit confirm bar -->
+<div id="editConfirmBar">
+  <span class="ecb-label" id="ecbLabel">Editando</span>
+  <button class="ecb-cancel" onclick="cancelEdit()" title="Cancelar">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <button class="ecb-confirm" onclick="confirmEdit()" title="Confirmar">
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  </button>
+</div>
+
+<!-- Code panel -->
+<div class="code-panel" id="codePanel">
+  <button class="cp-trigger" onclick="toggleCodePanel()" title="Código do pedido">
+    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+  </button>
+  <div class="cp-inner">
+    <div class="cp-label">Código do pedido</div>
+    <div class="cp-code" id="cpCode"><span id="cpCodeText">M1-A10X</span></div>
+    <div class="cp-btns">
+      <button class="cp-btn" onclick="copyCode()">
+        <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copiar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Zoom widget -->
+<div class="zoom-widget" id="zoomWidget">
+  <button class="zw-btn" id="viewToggleBtn" onclick="toggleView()" title="Vista traseira">
+    <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+  </button>
+  <div class="zw-div" id="zwZoomDiv"></div>
+  <button class="zw-btn" id="zwZoomIn" onclick="zoomIn()" title="Zoom +">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+  </button>
+  <button class="zw-btn" id="zwZoomOut" onclick="zoomOut()" title="Zoom −">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+  </button>
+  <div class="zw-div"></div>
+  <button class="zw-btn" onclick="camUp()" title="Câmera para cima">
+    <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+  </button>
+  <button class="zw-btn" onclick="camCenter()" title="Centralizar câmera">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/><polyline points="19 12 12 5 5 12" opacity=".4"/></svg>
+  </button>
+  <button class="zw-btn" onclick="camDown()" title="Câmera para baixo">
+    <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+</div>
+
+<!-- Bottom panel -->
+<div class="bottom-panel-wrap" id="bottomPanelWrap">
+  <div class="bottom-sheet" id="bottomSheet">
+    <div class="bs-handle" onclick="closeBottomSheet()"></div>
+    <div class="bs-content" id="bsContent">
+
+      <!-- MODELO -->
+      <div class="lp-section lp-active" id="lp-sec-modelo">
+        <div class="sec-title">Modelo</div>
+        <div class="model-grid" id="modelGrid"></div>
+      </div>
+
+      <!-- JERSEY -->
+      <div class="lp-section" id="lp-sec-jersey">
+
+        <div class="jps-section" id="jss-tronco">
+          <div class="jps-label">Tórax</div>
+          <div class="dot-row" id="jerseyColorDots"></div>
+          <div class="jp-swatch" id="jpsw-tronco" style="margin-top:8px"></div>
+        </div>
+
+        <div class="jps-section" id="jss-manga">
+          <div class="jps-label">Mangas</div>
+          <div class="dot-row" id="swManga"></div>
+          <div class="jp-swatch" id="jpsw-manga" style="margin-top:8px"></div>
+        </div>
+
+        <div class="jps-section" id="jss-lateral">
+          <div class="jps-label">Laterais</div>
+          <div class="dot-row" id="swLateral"></div>
+          <div class="jp-swatch" id="jpsw-lateral" style="margin-top:8px"></div>
+        </div>
+
+        <div class="jps-section" id="jss-costura">
+          <div class="jps-label">Costura</div>
+          <div class="dot-row" id="swCostura"></div>
+          <div class="jp-swatch" id="jpsw-costura" style="margin-top:8px"></div>
+        </div>
+
+        <div class="jps-section" id="jss-gola">
+          <div class="jps-label">Gola</div>
+          <div class="dot-row" id="collarPresets">
+            <div class="dot" id="cpBase" onclick="selectCollarPreset('base')" style="background:#1a3a6b" title="Cor base"></div>
+            <div class="dot" id="cpBlack" onclick="selectCollarPreset('black')" style="background:#000" title="Preto"></div>
+            <div class="dot" id="cpWhite" onclick="selectCollarPreset('white')" style="background:#fff;outline:1.5px solid rgba(0,0,0,0.2)" title="Branco"></div>
+            <div class="dot-wrap"><div class="dot rainbow" id="cpOther" onclick="selectCollarPreset('other')" title="Outra cor"></div><div class="dot-lbl">Outra</div></div>
+          </div>
+          <div class="cmyk-block" id="collarCmykBlock" style="display:none">
+            <div class="cmyk-title"><div class="cmyk-dot" id="collarDot" style="background:#cfcece"></div>Cor personalizada</div>
+            <div class="cmyk-row"><span class="cmyk-letter lc">C</span><input type="range" min="0" max="100" value="0"  id="gC" class="cmyk-range cmyk-c" oninput="onCollarCmyk()"><span class="cmyk-val" id="gCv">0%</span></div>
+            <div class="cmyk-row"><span class="cmyk-letter lm">M</span><input type="range" min="0" max="100" value="1"  id="gM" class="cmyk-range cmyk-m" oninput="onCollarCmyk()"><span class="cmyk-val" id="gMv">1%</span></div>
+            <div class="cmyk-row"><span class="cmyk-letter ly">Y</span><input type="range" min="0" max="100" value="1"  id="gY" class="cmyk-range cmyk-y" oninput="onCollarCmyk()"><span class="cmyk-val" id="gYv">1%</span></div>
+            <div class="cmyk-row"><span class="cmyk-letter lk">K</span><input type="range" min="0" max="100" value="19" id="gK" class="cmyk-range cmyk-k" oninput="onCollarCmyk()"><span class="cmyk-val" id="gKv">19%</span></div>
+            <div class="cmyk-preview">
+              <div class="cmyk-swatch" id="collarSwatchPrev" style="background:#cfcece"></div>
+              <div class="cmyk-hex"><small>Hex resultante</small><span id="collarHexDisp">#CFCECE</span></div>
+            </div>
+          </div>
+          <div class="jp-swatch" id="jpsw-gola" style="margin-top:8px"></div>
+        </div>
+
+      </div>
+
+      <!-- SHORTS -->
+      <div class="lp-section" id="lp-sec-shorts">
+        <div class="sec-title">Cor do shorts</div>
+        <div class="shorts-grid" id="shortsColorGrid"></div>
+      </div>
+
+      <!-- SVG UPLOAD -->
+      <div class="lp-section" id="lp-sec-svg">
+        <div class="sec-title">Estampa / SVG</div>
+        <div class="sec-title" style="margin-bottom:6px;opacity:.65">Resolução de textura</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="ppill tex-res-btn" data-res="256"  onclick="setSVGResolution(256)">Baixa</button>
+          <button class="ppill tex-res-btn active" data-res="512"  onclick="setSVGResolution(512)">Padrão</button>
+          <button class="ppill tex-res-btn" data-res="1024" onclick="setSVGResolution(1024)">Alta</button>
+          <button class="ppill tex-res-btn" data-res="2048" onclick="setSVGResolution(2048)">Máxima</button>
+        </div>
+        <div class="sec-title" style="margin-bottom:6px;opacity:.65">Aplicar em</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="cb svg-part-btn active" data-part="tronco" onclick="setSVGTarget('tronco')">Tórax</button>
+          <button class="cb svg-part-btn" data-part="manga"   onclick="setSVGTarget('manga')">Mangas</button>
+          <button class="cb svg-part-btn" data-part="lateral" onclick="setSVGTarget('lateral')">Laterais</button>
+          <button class="cb svg-part-btn" data-part="short"   onclick="setSVGTarget('short')">Shorts</button>
+        </div>
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" accept=".svg,image/svg+xml" id="svgUpload" onchange="handleSVGUpload(event)">
+          <div style="margin-bottom:5px;opacity:.45"><svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="1.5" style="width:22px;height:22px"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
+          <div class="upload-title">Arraste ou clique — SVG</div>
+          <div class="upload-sub">Aplicado sobre a jersey</div>
+          <div id="fileBadge" style="display:none" class="file-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:9px;height:9px"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="fileName">arquivo.svg</span>
+          </div>
+        </div>
+        <div id="svgControls" style="display:none;margin-top:10px">
+          <div class="ctrl-row"><span class="ctrl-lbl">Opacidade</span><input type="range" min="10" max="100" value="90" id="svgOpacity" oninput="updateSVGOpacity(this.value)"><input type="number" class="ctrl-num" min="10" max="100" value="90" id="svgOpacityNum" oninput="updateSVGOpacity(this.value)"></div>
+          <div class="ctrl-row"><span class="ctrl-lbl">Escala</span><input type="range" min="5" max="150" value="30" id="svgScale" oninput="updateSVGScale(this.value)"><input type="number" class="ctrl-num" min="5" max="150" value="30" id="svgScaleNum" oninput="updateSVGScale(this.value)"></div>
+          <div class="ctrl-row"><span class="ctrl-lbl">Rotação</span><input type="range" min="-180" max="180" value="0" id="svgRotation" oninput="updateSVGRotation(this.value)"><input type="number" class="ctrl-num" min="-180" max="180" value="0" id="svgRotationNum" oninput="updateSVGRotation(this.value)"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin:6px 0 2px">
+            <input type="checkbox" id="svgFlip" onchange="toggleSVGFlip(this.checked)" style="accent-color:var(--green)">
+            <label for="svgFlip" style="font-size:12px;opacity:.75;cursor:pointer">Espelhar horizontalmente</label>
+          </div>
+          <div class="sec-title" style="margin-top:10px">Mover</div>
+          <div style="display:flex;align-items:flex-start;gap:10px">
+            <div class="move-pad">
+              <div class="mv-btn mv-empty"></div>
+              <button class="mv-btn" onclick="moveSVG(0,-40)" title="Mover para cima">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,10 8,5 12,10"/></svg>
+              </button>
+              <div class="mv-btn mv-empty"></div>
+              <button class="mv-btn" onclick="moveSVG(-60,0)" title="Mover para esquerda">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,4 5,8 10,12"/></svg>
+              </button>
+              <button class="mv-btn mv-center" id="svgMoveBtn" onclick="toggleSVGMove()" title="Mover com cursor (trava rotação do canvas)">
+                <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/><path d="M5 5l1.5 1.5M9.5 9.5L11 11M11 5l-1.5 1.5M6.5 9.5L5 11"/><circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none"/></svg>
+              </button>
+              <button class="mv-btn" onclick="moveSVG(60,0)" title="Mover para direita">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,4 11,8 6,12"/></svg>
+              </button>
+              <div class="mv-btn mv-empty"></div>
+              <button class="mv-btn" onclick="moveSVG(0,40)" title="Mover para baixo">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,11 12,6"/></svg>
+              </button>
+              <div class="mv-btn mv-empty"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:2px">
+              <button class="cb" style="min-width:70px" onclick="centerSVGH()">↔ Centro H</button>
+              <button class="cb" style="min-width:70px" onclick="centerSVGV()">↕ Centro V</button>
+            </div>
+          </div>
+          <button class="btn-sm" style="width:100%;margin-top:10px" onclick="removeSVG()">Remover SVG</button>
+        </div>
+      </div>
+
+      <!-- NOME -->
+      <div class="lp-section" id="lp-sec-nome">
+        <div class="sec-title">Nome nas costas</div>
+        <input type="text" class="text-inp" id="jerseyText" placeholder="SEU NOME" maxlength="18" oninput="setName(this.value)">
+        <div class="ctrl-row" style="margin-top:8px">
+          <span class="ctrl-lbl">Tamanho</span>
+          <input type="range" min="10" max="32" value="16" oninput="setNameSize(this.value)">
+          <span class="ctrl-val" id="textSizeVal">16</span>
+        </div>
+        <div class="sec-title" style="margin-top:10px">Cor do nome</div>
+        <div class="swatches" id="nameColorSwatches"></div>
+        <div class="sec-title" style="margin-top:4px">Posição vertical</div>
+        <div class="pos-row">
+          <button class="npb" id="namePosTopo" onclick="setNamePos('topo')" title="Topo">
+            <svg viewBox="0 0 14 20" width="12" height="18" fill="none">
+              <rect x="0" y="0" width="14" height="5" rx="1.8" fill="#1a6b3a"/>
+              <rect x="0" y="7.5" width="14" height="5" rx="1.8" fill="currentColor" opacity=".22"/>
+              <rect x="0" y="15" width="14" height="5" rx="1.8" fill="currentColor" opacity=".22"/>
+            </svg>
+          </button>
+          <button class="npb active" id="namePosCentro" onclick="setNamePos('centro')" title="Centro">
+            <svg viewBox="0 0 14 20" width="12" height="18" fill="none">
+              <rect x="0" y="0" width="14" height="5" rx="1.8" fill="currentColor" opacity=".22"/>
+              <rect x="0" y="7.5" width="14" height="5" rx="1.8" fill="#1a6b3a"/>
+              <rect x="0" y="15" width="14" height="5" rx="1.8" fill="currentColor" opacity=".22"/>
+            </svg>
+          </button>
+          <button class="npb" id="namePosBase" onclick="setNamePos('base')" title="Base">
+            <svg viewBox="0 0 14 20" width="12" height="18" fill="none">
+              <rect x="0" y="0" width="14" height="5" rx="1.8" fill="currentColor" opacity=".22"/>
+              <rect x="0" y="7.5" width="14" height="5" rx="1.8" fill="currentColor" opacity=".22"/>
+              <rect x="0" y="15" width="14" height="5" rx="1.8" fill="#1a6b3a"/>
+            </svg>
+          </button>
+        </div>
+        <div class="sec-title" style="margin-top:10px">Mover</div>
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div class="move-pad">
+            <div class="mv-btn mv-empty"></div>
+            <button class="mv-btn" onclick="moveDecal(0,0.05)" title="Mover para cima">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,10 8,5 12,10"/></svg>
+            </button>
+            <div class="mv-btn mv-empty"></div>
+            <button class="mv-btn" onclick="moveDecal(-0.06,0)" title="Mover para esquerda">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="10,4 5,8 10,12"/></svg>
+            </button>
+            <button class="mv-btn mv-center" id="decalMoveBtn" onclick="toggleDecalMove()" title="Mover com cursor (trava rotação do canvas)">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v2M8 13v2M1 8h2M13 8h2"/><path d="M5 5l1.5 1.5M9.5 9.5L11 11M11 5l-1.5 1.5M6.5 9.5L5 11"/><circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none"/></svg>
+            </button>
+            <button class="mv-btn" onclick="moveDecal(0.06,0)" title="Mover para direita">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,4 11,8 6,12"/></svg>
+            </button>
+            <div class="mv-btn mv-empty"></div>
+            <button class="mv-btn" onclick="moveDecal(0,-0.05)" title="Mover para baixo">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4,6 8,11 12,6"/></svg>
+            </button>
+            <div class="mv-btn mv-empty"></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-top:2px">
+            <button class="cb" style="min-width:70px" onclick="centerDecalH()">↔ Centro H</button>
+            <button class="cb" style="min-width:70px" onclick="centerDecalV()">↕ Centro V</button>
+          </div>
+        </div>
+      </div>
+
+
+    </div><!-- /bs-content -->
+  </div><!-- /bottom-sheet -->
+
+  <div class="bottom-nav" id="bottomNav">
+    <button class="bn-btn" data-panel="lp-sec-modelo" onclick="togglePanel('lp-sec-modelo')" title="Modelo">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity=".7"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity=".4"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" opacity=".7"/></svg>
+    </button>
+    <button class="bn-btn" data-panel="lp-sec-jersey" onclick="togglePanel('lp-sec-jersey')" title="Jersey">
+      <svg viewBox="0 0 24 24"><path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.57a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.57a2 2 0 00-1.34-2.23z"/></svg>
+    </button>
+<button class="bn-btn" data-panel="lp-sec-shorts" onclick="togglePanel('lp-sec-shorts')" title="Shorts">
+      <svg viewBox="0 0 24 24"><path d="M4 4h16l-2 11H6L4 4z"/><line x1="12" y1="4" x2="12" y2="15"/><path d="M6 15l-1.5 5M18 15l1.5 5"/></svg>
+    </button>
+    <button class="bn-btn" data-panel="lp-sec-svg" onclick="togglePanel('lp-sec-svg')" title="Upload SVG">
+      <svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+    </button>
+    <button class="bn-btn" data-panel="lp-sec-nome" onclick="togglePanel('lp-sec-nome')" title="Nome">
+      <svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    </button>
+  </div>
+</div><!-- /bottom-panel-wrap -->
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/","detect-gpu":"https://esm.sh/detect-gpu"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
+import { getGPUTier } from 'detect-gpu';
+
+// ─── CMYK utils ──────────────────────────────────────────────
+function cmykToHex(c,m,y,k){
+  const r=Math.round(255*(1-c/100)*(1-k/100));
+  const g=Math.round(255*(1-m/100)*(1-k/100));
+  const b=Math.round(255*(1-y/100)*(1-k/100));
+  return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0')).join('');
+}
+function hexToCmyk(hex){
+  const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+  const k=1-Math.max(r,g,b);if(k>=1)return{c:0,m:0,y:0,k:100};
+  const inv=1-k;
+  return{c:Math.round((1-r-k)/inv*100),m:Math.round((1-g-k)/inv*100),y:Math.round((1-b-k)/inv*100),k:Math.round(k*100)};
+}
+
+// ─── State ───────────────────────────────────────────────────
+const state = {
+  model: 'basic',
+  jersey: { color:'#1a3a6b', cmyk:{c:76,m:46,y:0,k:58}, pattern:'none', svgImg:null, svgOpacity:.9, svgScale:0.3, svgRotation:0, svgFlip:false, svgOffsetX:0, svgOffsetY:0,
+            text:'', textSize:16, namePos:'centro', nameColor:'rgba(255,255,255,0.95)', nameDeltaX:0, nameDeltaY:0 },
+  collar: { color:'#cfcece', cmyk:{c:0,m:1,y:1,k:19}, preset:'other' },
+  shorts: { color:'#0a0a0a', detail:'solid' },
+  parts:  { tronco:'#1a3a6b', manga:'#1a3a6b', lateral:'#e8307a', short:'#0a0a0a', costura:'#cfcece' }
+};
+let ACCENT = '#e8307a';
+
+// ─── GPU tier config (defaults; refined async after detection) ─
+const _GPU = {
+  tier: 2,
+  isMobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
+  get pixelRatio(){ return this._pr ?? Math.min(window.devicePixelRatio, 1.5); },
+  _pr: null,
+  label: ''
+};
+
+// ─── Renderer ────────────────────────────────────────────────
+const canvas = document.getElementById('threeCanvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(_GPU.pixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+// ─── Render-on-demand counter (declared early so event listeners can reference it) ───
+let _renderFrames = 2;
+function requestRender(){ _renderFrames = 3; }
+
+// ─── Scene / Camera / Controls ───────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.01, 50);
+camera.position.set(0, 0.42, 2.5);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.32, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.1;
+controls.minDistance = 0.7; controls.maxDistance = 6;
+controls.maxPolarAngle = Math.PI * 0.88; controls.enablePan = false;
+controls.addEventListener('change', () => requestRender());
+controls.update();
+
+// ─── GPU tier detection ───────────────────────────────────────
+(async () => {
+  const TIER_LABELS = ['Baixo','Médio-baixo','Médio','Alto'];
+  try {
+    const result = await getGPUTier();
+    _GPU.tier     = result.tier     ?? 2;
+    _GPU.isMobile = result.isMobile ?? _GPU.isMobile;
+    _GPU.label    = result.gpu      ?? '';
+
+    // Pixel ratio per tier
+    const dpr = window.devicePixelRatio;
+    _GPU._pr = _GPU.tier <= 1 ? 1.0
+             : _GPU.tier === 2 ? (_GPU.isMobile ? Math.min(dpr, 1.5) : Math.min(dpr, 2))
+             : Math.min(dpr, 2);
+    renderer.setPixelRatio(_GPU._pr);
+
+    // Jersey texture resolution per tier
+    if (_GPU.tier >= 3 && !_GPU.isMobile) {
+      jerseyCanvas.width = 2048; jerseyCanvas.height = 1024; _texBase = 1024;
+    } else if (_GPU.tier <= 1) {
+      jerseyCanvas.width = 512;  jerseyCanvas.height = 256;  _texBase = 256;
+    }
+    // Tier 2 keeps the default 1024×512 / _texBase=512
+    document.querySelectorAll('.tex-res-btn').forEach(b =>
+      b.classList.toggle('active', +b.dataset.res === _texBase)
+    );
+
+    paintJerseyCanvas(); jerseyTex.needsUpdate = true;
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    requestRender();
+
+    const tierLabel = TIER_LABELS[_GPU.tier] ?? 'Alto';
+    const gpuShort  = _GPU.label ? ` · ${_GPU.label}` : '';
+    setStatus(`GPU Tier ${_GPU.tier} (${tierLabel})${gpuShort}`);
+    console.log('[GPU Tier]', result);
+  } catch(e) {
+    console.warn('[GPU Tier] Detecção falhou, usando padrões:', e);
+  }
+})();
+
+// ─── Lights ──────────────────────────────────────────────────
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.9); scene.add(ambientLight);
+const hemiLight = new THREE.HemisphereLight(0xd4e8ff, 0x1a1a2e, 0.6); scene.add(hemiLight);
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(1.5,2.5,2.5); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.5); fill.position.set(-2,0.5,-1); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.35); rim.position.set(0,1.5,-3); scene.add(rim);
+
+const _baseLights = [
+  { light: ambientLight, base: 2.34 },
+  { light: hemiLight,    base: 1.56 },
+  { light: key,          base: 5.72 },
+  { light: fill,         base: 1.30 },
+  { light: rim,          base: 0.91 },
+];
+
+window.setLightIntensity = function(v) {
+  const val = Math.max(0, Math.min(300, parseInt(v) || 0));
+  const mult = val / 100;
+  _baseLights.forEach(({light, base}) => { light.intensity = base * mult; });
+  const ls=document.getElementById('lpLightSlider'); if(ls) ls.value=val;
+  const lv=document.getElementById('lpLightVal');    if(lv) lv.textContent=val+'%';
+  requestRender();
+};
+
+// ─── Lighting presets ────────────────────────────────────────
+const _lightPresets = [
+  { id:'studio',  name:'Estúdio',
+    bg:0xffffff,  floor:0xf5f5f0,
+    ambient:{ color:0xffffff,  intensity:0.9  },
+    hemi:   { sky:0xd4e8ff,   ground:0x1a1a2e, intensity:0.6  },
+    key:    { color:0xffffff,  intensity:2.2,  pos:[1.5,2.5,2.5]  },
+    fill:   { color:0xffffff,  intensity:0.5,  pos:[-2,0.5,-1]    },
+    rim:    { color:0xffffff,  intensity:0.35, pos:[0,1.5,-3]     },
+  },
+  { id:'dia',     name:'Dia',
+    bg:0xc8daff,  floor:0xdce8d0,
+    ambient:{ color:0xfff4e0,  intensity:0.55 },
+    hemi:   { sky:0x88aaff,   ground:0x446622, intensity:1.1  },
+    key:    { color:0xfff8d0,  intensity:2.8,  pos:[2.5,3.5,1.5]  },
+    fill:   { color:0xa8c8ff,  intensity:0.5,  pos:[-2,1,-1]      },
+    rim:    { color:0xffffff,  intensity:0.15, pos:[0,2,-3]       },
+  },
+  { id:'dourado', name:'Dourado',
+    bg:0x120a04,  floor:0x1a1008,
+    ambient:{ color:0xff8844,  intensity:0.35 },
+    hemi:   { sky:0xff6622,   ground:0x220800, intensity:0.5  },
+    key:    { color:0xffaa44,  intensity:2.8,  pos:[3,1.2,1]      },
+    fill:   { color:0xff3300,  intensity:0.3,  pos:[-2,0.5,0]     },
+    rim:    { color:0x8855ff,  intensity:0.7,  pos:[-1,2,-3]      },
+  },
+  { id:'noite',   name:'Noite',
+    bg:0x06090f,  floor:0x0a0d14,
+    ambient:{ color:0x3355aa,  intensity:0.2  },
+    hemi:   { sky:0x112266,   ground:0x020408, intensity:0.3  },
+    key:    { color:0x8899ff,  intensity:0.9,  pos:[1,3.5,2]      },
+    fill:   { color:0x223366,  intensity:0.25, pos:[-2,1,-1]      },
+    rim:    { color:0xaabbff,  intensity:1.0,  pos:[0,1.5,-3]     },
+  },
+  { id:'softbox', name:'Softbox',
+    bg:0xf8f8f8,  floor:0xfafafa,
+    ambient:{ color:0xffffff,  intensity:1.3  },
+    hemi:   { sky:0xffffff,   ground:0xe0e0e0, intensity:0.35 },
+    key:    { color:0xffffff,  intensity:1.2,  pos:[0.8,2,3]      },
+    fill:   { color:0xffffff,  intensity:1.0,  pos:[-2,1.5,2]     },
+    rim:    { color:0xffffff,  intensity:0.4,  pos:[0,1,-2]       },
+  },
+];
+
+function applyLightPreset(presetId) {
+  const p = _lightPresets.find(x=>x.id===presetId); if(!p) return;
+  scene.background.set(p.bg);
+  if(_floorMat) _floorMat.color.set(p.floor);
+  ambientLight.color.set(p.ambient.color);
+  hemiLight.color.set(p.hemi.sky); hemiLight.groundColor.set(p.hemi.ground);
+  key.color.set(p.key.color);   key.position.set(...p.key.pos);
+  fill.color.set(p.fill.color); fill.position.set(...p.fill.pos);
+  rim.color.set(p.rim.color);   rim.position.set(...p.rim.pos);
+  _baseLights[0].base=p.ambient.intensity; _baseLights[1].base=p.hemi.intensity;
+  _baseLights[2].base=p.key.intensity;    _baseLights[3].base=p.fill.intensity;
+  _baseLights[4].base=p.rim.intensity;
+  setLightIntensity(100);
+  document.querySelectorAll('.lp-preset-btn').forEach(b=>
+    b.classList.toggle('active', b.dataset.preset===presetId)
+  );
+  setStatus('Luz: '+p.name);
+}
+window.applyLightPreset = applyLightPreset;
+
+function buildLightPresets() {
+  const el=document.getElementById('lightPresetGrid'); if(!el) return;
+  _lightPresets.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.className='ppill lp-preset-btn'+(p.id==='studio'?' active':'');
+    btn.dataset.preset=p.id; btn.textContent=p.name;
+    btn.onclick=()=>applyLightPreset(p.id);
+    el.appendChild(btn);
+  });
+}
+
+// ─── HDRI / environment ──────────────────────────────────────
+const _pmrem = new THREE.PMREMGenerator(renderer);
+_pmrem.compileEquirectangularShader();
+let _hdriEnvMap = null;
+let _hdriShowBg = false;
+const _hdriLoader = new RGBELoader();
+
+window.loadHDRI = function(file) {
+  const url = URL.createObjectURL(file);
+  _hdriLoader.load(url, tex => {
+    URL.revokeObjectURL(url);
+    if (_hdriEnvMap) _hdriEnvMap.dispose();
+    _hdriEnvMap = _pmrem.fromEquirectangular(tex).texture;
+    tex.dispose();
+    scene.environment = _hdriEnvMap;
+    _allMats().forEach(m => { m.envMap = _hdriEnvMap; m.envMapIntensity = _hdriEnvIntensity; m.needsUpdate = true; });
+    if (_hdriShowBg) scene.background = _hdriEnvMap;
+    document.getElementById('hdriBadge')?.style.setProperty('display','flex');
+    document.getElementById('hdriFileName').textContent = file.name;
+    requestRender();
+  });
+};
+
+window.removeHDRI = function() {
+  if (_hdriEnvMap) { _hdriEnvMap.dispose(); _hdriEnvMap = null; }
+  scene.environment = null;
+  _allMats().forEach(m => { m.envMap = null; m.needsUpdate = true; });
+  if (_hdriShowBg) scene.background = new THREE.Color(0xffffff);
+  document.getElementById('hdriBadge')?.style.setProperty('display','none');
+  requestRender();
+};
+
+window.toggleHDRIBg = function(checked) {
+  _hdriShowBg = checked;
+  scene.background = _hdriShowBg && _hdriEnvMap ? _hdriEnvMap : new THREE.Color(0xffffff);
+  requestRender();
+};
+
+let _hdriEnvIntensity = 1.0;
+window.setHDRIIntensity = function(v) {
+  _hdriEnvIntensity = v / 100;
+  _allMats().forEach(m => { m.envMapIntensity = _hdriEnvIntensity; m.needsUpdate = true; });
+  document.getElementById('hdriIntensityVal').textContent = v + '%';
+  requestRender();
+};
+
+function _allMats() {
+  return [jerseyMat, shortsMat, collarMat, skinMat, ...Object.values(partMats)];
+}
+
+window.setSVGResolution = function(base) {
+  _texBase = base;
+  // Resize jersey (tronco) canvas
+  jerseyCanvas.width = base * 2; jerseyCanvas.height = base;
+  paintJerseyCanvas(); jerseyTex.needsUpdate = true;
+  // Destroy part canvases — they'll be recreated at the new size on next paint
+  Object.values(_svgCanvases).forEach(({ tex }) => tex.dispose());
+  for (const k in _svgCanvases) delete _svgCanvases[k];
+  // If a non-tronco part is the SVG target, reassign its canvas texture
+  if (_svgTarget !== 'tronco') {
+    _paintSvgCanvas(_svgTarget);
+    const { tex } = _getSvgCanvas(_svgTarget);
+    _matsForPart(_svgTarget).forEach(m => { m.map = tex; m.needsUpdate = true; });
+  }
+  document.querySelectorAll('.tex-res-btn').forEach(b =>
+    b.classList.toggle('active', +b.dataset.res === base)
+  );
+  requestRender();
+};
+
+// ─── Jersey canvas (color + pattern + SVG overlay) ───────────
+const jerseyCanvas = document.createElement('canvas');
+jerseyCanvas.width = 1024; jerseyCanvas.height = 512;
+const jerseyCtx = jerseyCanvas.getContext('2d');
+let _texBase = 512; // jersey canvas height; drives all texture resolutions
+const jerseyTex = new THREE.CanvasTexture(jerseyCanvas);
+jerseyTex.colorSpace = THREE.SRGBColorSpace;
+
+function paintJerseyCanvas() {
+  const ctx = jerseyCtx, W = jerseyCanvas.width, H = jerseyCanvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = state.jersey.color;
+  ctx.fillRect(0,0,W,H);
+  // decorative pattern
+  const p = state.jersey.pattern;
+  if (p !== 'none') {
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = ACCENT;
+    if (p === 'stripe') { for(let i=0;i<8;i++){ctx.fillRect(60+i*120,0,50,H);} }
+    else if (p === 'diagonal') {
+      ctx.globalAlpha = 0.15;
+      for(let i=-4;i<12;i++){ctx.beginPath();ctx.moveTo(i*130,0);ctx.lineTo(i*130-260,H);ctx.lineWidth=40;ctx.strokeStyle=ACCENT;ctx.stroke();}
+    }
+    else if (p === 'lateral') { ctx.fillRect(0,0,180,H); ctx.fillRect(W-180,0,180,H); }
+    else if (p === 'chevron') {
+      [0,180,360].forEach(o=>{
+        ctx.beginPath();ctx.moveTo(W/2,o);ctx.lineTo(0,o+200);ctx.lineTo(0,o+280);ctx.lineTo(W/2,o+80);ctx.lineTo(W,o+280);ctx.lineTo(W,o+200);ctx.closePath();ctx.fill();
+      });
+    }
+    else if (p === 'blocos') {
+      [[0,0,W/2,H/2,.18],[W/2,0,W/2,H/2,.1],[0,H/2,W/2,H/2,.1],[W/2,H/2,W/2,H/2,.18]].forEach(([x,y,w,h,a])=>{ctx.globalAlpha=a;ctx.fillRect(x,y,w,h);});
+    }
+    else if (p === 'triângulo') {
+      ctx.beginPath();ctx.moveTo(W/2,40);ctx.lineTo(0,H);ctx.lineTo(W,H);ctx.closePath();ctx.fill();
+    }
+    ctx.restore();
+  }
+  // SVG overlay (only when tronco is the SVG target)
+  if (state.jersey.svgImg && _svgTarget === 'tronco') {
+    ctx.save();
+    ctx.globalAlpha = state.jersey.svgOpacity;
+    const sc = state.jersey.svgScale;
+    const iw = W * sc, ih = H * sc;
+    // negate svgOffsetX so positive = right on jersey despite mirrored UVs
+    const cx = W / 2 - (state.jersey.svgOffsetX || 0);
+    const cy = H / 2 + (state.jersey.svgOffsetY || 0);
+    ctx.translate(cx, cy);
+    ctx.scale(-1, 1); // base flip to counteract mirrored UV mapping
+    ctx.rotate((state.jersey.svgRotation || 0) * Math.PI / 180);
+    if (state.jersey.svgFlip) ctx.scale(-1, 1);
+    ctx.drawImage(state.jersey.svgImg, -iw / 2, -ih / 2, iw, ih);
+    ctx.restore();
+  }
+  jerseyTex.needsUpdate = true;
+}
+paintJerseyCanvas();
+
+// ─── Back-name decal ─────────────────────────────────────────
+const nmCanvas = document.createElement('canvas');
+nmCanvas.width = 512; nmCanvas.height = 128;
+const nmCtx = nmCanvas.getContext('2d');
+const nmTex = new THREE.CanvasTexture(nmCanvas);
+nmTex.colorSpace = THREE.SRGBColorSpace;
+const decalMat = new THREE.MeshBasicMaterial({
+  map: nmTex, transparent: true,
+  depthTest: true, depthWrite: false,
+  polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4
+});
+let nameDec = null;
+const namePosY3D = { topo:0.78, centro:0.52, base:0.28 };
+const _rc = new THREE.Raycaster();
+
+function drawNameCanvas() {
+  nmCtx.clearRect(0,0,512,128);
+  if (!state.jersey.text) { nmTex.needsUpdate = true; return; }
+  let fs = state.jersey.textSize * 3.5;
+  nmCtx.font = `900 ${fs}px Montserrat, sans-serif`;
+  const w = nmCtx.measureText(state.jersey.text.toUpperCase()).width;
+  if (w > 470) { fs = fs*470/w; nmCtx.font = `900 ${fs}px Montserrat, sans-serif`; }
+  nmCtx.save();
+  nmCtx.translate(512, 0); nmCtx.scale(-1, 1); // mirror to correct decal projection
+  nmCtx.textAlign = 'center'; nmCtx.textBaseline = 'middle';
+  nmCtx.fillStyle = state.jersey.nameColor;
+  try { nmCtx.letterSpacing = '4px'; } catch(_) {}
+  nmCtx.fillText(state.jersey.text.toUpperCase(), 256, 64);
+  nmCtx.restore();
+  nmTex.needsUpdate = true;
+}
+
+function _stampDecal(mesh, hitPoint, faceNormal) {
+  if (nameDec) { scene.remove(nameDec); nameDec.geometry.dispose(); nameDec = null; }
+  const pos = hitPoint.clone().addScaledVector(faceNormal, 0.003);
+  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,-1), faceNormal);
+  const euler = new THREE.Euler().setFromQuaternion(quat);
+  const geo = new DecalGeometry(mesh, pos, euler, new THREE.Vector3(0.32,0.1,0.15));
+  nameDec = new THREE.Mesh(geo, decalMat);
+  scene.add(nameDec);
+  requestRender();
+}
+
+function placeDecal() {
+  if (nameDec) { scene.remove(nameDec); nameDec.geometry.dispose(); nameDec = null; }
+  if (!state.jersey.text) return;
+  const target = glbModel || body;
+  scene.updateMatrixWorld();
+  const yPos = namePosY3D[state.jersey.namePos] + (state.jersey.nameDeltaY || 0);
+  const xPos = state.jersey.nameDeltaX || 0;
+  _rc.set(new THREE.Vector3(xPos,yPos,-5), new THREE.Vector3(0,0,1));
+  let hits = _rc.intersectObject(target, true);
+  if (!hits.length) {
+    _rc.set(new THREE.Vector3(xPos,yPos,5), new THREE.Vector3(0,0,-1));
+    hits = _rc.intersectObject(target, true);
+  }
+  if (!hits.length || !hits[0].face) return;
+  const hit = hits[0], mesh = hit.object;
+  const faceNormal = hit.face.normal.clone().transformDirection(mesh.matrixWorld).normalize();
+  _stampDecal(mesh, hit.point, faceNormal);
+}
+
+// ─── Decal drag-to-place mode ────────────────────────────────
+let decalMoveMode = false;
+let svgMoveMode   = false;
+let _decalDragging = false;
+
+function _raycastPointer(clientX, clientY) {
+  const target = glbModel || body;
+  if (!target) return null;
+  scene.updateMatrixWorld();
+  const rect = canvas.getBoundingClientRect();
+  const nx = ((clientX - rect.left) / rect.width)  * 2 - 1;
+  const ny = -((clientY - rect.top)  / rect.height) * 2 + 1;
+  _rc.setFromCamera({ x: nx, y: ny }, camera);
+  const hits = _rc.intersectObject(target, true);
+  return hits.length ? hits[0] : null;
+}
+
+function _placeDecalFromPointer(clientX, clientY) {
+  if (!state.jersey.text) return;
+  const hit = _raycastPointer(clientX, clientY);
+  if (!hit || !hit.face) return;
+  const faceNormal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+  _stampDecal(hit.object, hit.point, faceNormal);
+}
+
+function _placeSVGFromPointer(clientX, clientY) {
+  if (!state.jersey.svgImg) return;
+  const hit = _raycastPointer(clientX, clientY);
+  if (!hit || !hit.uv) return;
+  const W = _svgTarget === 'tronco' ? jerseyCanvas.width  : _getSvgCanvas(_svgTarget).canvas.width;
+  const H = _svgTarget === 'tronco' ? jerseyCanvas.height : _getSvgCanvas(_svgTarget).canvas.height;
+  state.jersey.svgOffsetX = hit.uv.x * W - W / 2;
+  state.jersey.svgOffsetY = (1 - hit.uv.y) * H - H / 2;
+  _paintSvgCanvas(_svgTarget); requestRender();
+}
+
+let _svgDragStart = null; // { uvX, uvY, offX, offY }
+
+function _beginSVGDrag(clientX, clientY) {
+  const hit = _raycastPointer(clientX, clientY);
+  if (hit && hit.uv) {
+    _svgDragStart = { uvX: hit.uv.x, uvY: hit.uv.y,
+                      offX: state.jersey.svgOffsetX || 0, offY: state.jersey.svgOffsetY || 0 };
+  }
+}
+
+function _updateSVGDrag(clientX, clientY) {
+  if (!_svgDragStart) return;
+  const hit = _raycastPointer(clientX, clientY);
+  if (!hit || !hit.uv) return;
+  const W = _svgTarget === 'tronco' ? jerseyCanvas.width  : _getSvgCanvas(_svgTarget).canvas.width;
+  const H = _svgTarget === 'tronco' ? jerseyCanvas.height : _getSvgCanvas(_svgTarget).canvas.height;
+  state.jersey.svgOffsetX = _svgDragStart.offX - (hit.uv.x - _svgDragStart.uvX) * W;
+  state.jersey.svgOffsetY = _svgDragStart.offY - (hit.uv.y - _svgDragStart.uvY) * H;
+  _paintSvgCanvas(_svgTarget); requestRender();
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (!decalMoveMode && !svgMoveMode) return;
+  e.preventDefault(); _decalDragging = true;
+  if (decalMoveMode) _placeDecalFromPointer(e.clientX, e.clientY);
+  else               _beginSVGDrag(e.clientX, e.clientY);
+});
+canvas.addEventListener('mousemove', e => {
+  if ((!decalMoveMode && !svgMoveMode) || !_decalDragging) return;
+  if (decalMoveMode) _placeDecalFromPointer(e.clientX, e.clientY);
+  else               _updateSVGDrag(e.clientX, e.clientY);
+});
+canvas.addEventListener('mouseup', () => { _decalDragging = false; _svgDragStart = null; });
+canvas.addEventListener('touchstart', e => {
+  if (!decalMoveMode && !svgMoveMode) return;
+  e.preventDefault(); _decalDragging = true;
+  const t = e.touches[0];
+  if (decalMoveMode) _placeDecalFromPointer(t.clientX, t.clientY);
+  else               _beginSVGDrag(t.clientX, t.clientY);
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  if ((!decalMoveMode && !svgMoveMode) || !_decalDragging) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  if (decalMoveMode) _placeDecalFromPointer(t.clientX, t.clientY);
+  else               _updateSVGDrag(t.clientX, t.clientY);
+}, { passive: false });
+canvas.addEventListener('touchend', () => { _decalDragging = false; _svgDragStart = null; });
+
+// ─── Part hover & click selection ────────────────────────────
+let _hoveredPartKey = null;
+let _partClickStart = null;
+
+function _setPartHover(partKey) {
+  if (_hoveredPartKey === partKey) return;
+  if (_hoveredPartKey && partMats[_hoveredPartKey]) {
+    partMats[_hoveredPartKey].emissive.set(0x000000);
+    partMats[_hoveredPartKey].emissiveIntensity = 0;
+  }
+  _hoveredPartKey = partKey;
+  if (_hoveredPartKey && partMats[_hoveredPartKey]) {
+    partMats[_hoveredPartKey].emissive.set(0xffe433);
+    partMats[_hoveredPartKey].emissiveIntensity = 0.59;
+  }
+  canvas.style.cursor = _hoveredPartKey ? 'pointer' : '';
+  requestRender();
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (e.buttons !== 0 || !glbModel) { if (e.buttons !== 0) _setPartHover(null); return; }
+  const hit = _raycastPointer(e.clientX, e.clientY);
+  _setPartHover((hit && hit.object && hit.object.userData.partKey) || null);
+});
+canvas.addEventListener('mouseleave', () => _setPartHover(null));
+canvas.addEventListener('mousedown', e => { _partClickStart = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('click', e => {
+  if (!_partClickStart) return;
+  const dist = Math.hypot(e.clientX - _partClickStart.x, e.clientY - _partClickStart.y);
+  _partClickStart = null;
+  if (dist > 6 || !_hoveredPartKey || decalMoveMode || svgMoveMode) return;
+  e.stopPropagation();
+  _showPartPopup(_hoveredPartKey, e.clientX, e.clientY);
+});
+
+// ─── Materials ───────────────────────────────────────────────
+const _fabricProps = { roughness: 0.88, metalness: 0.0 };
+const jerseyMat = new THREE.MeshStandardMaterial({ map: jerseyTex, ..._fabricProps });
+const shortsMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(state.shorts.color), ..._fabricProps });
+const collarMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(state.collar.color), ..._fabricProps });
+const skinMat   = new THREE.MeshStandardMaterial({ color: new THREE.Color(0xc8956c), roughness: 0.7, metalness: 0.0 });
+
+// ─── Per-section materials (sectioned GLBs) ──────────────────
+const partMats = {
+  tronco:  new THREE.MeshStandardMaterial({ color: new THREE.Color(state.parts.tronco),  ..._fabricProps }),
+  manga:   new THREE.MeshStandardMaterial({ color: new THREE.Color(state.parts.manga),   ..._fabricProps }),
+  lateral: new THREE.MeshStandardMaterial({ color: new THREE.Color(state.parts.lateral), ..._fabricProps }),
+  short:   new THREE.MeshStandardMaterial({ color: new THREE.Color(state.parts.short),   ..._fabricProps }),
+  costura: new THREE.MeshStandardMaterial({ color: new THREE.Color(state.parts.costura), ..._fabricProps }),
+};
+const _partMatKey = {
+  'tronco':   'tronco',
+  'manga-L':  'manga',
+  'manga-R':  'manga',
+  'lateral-L':'lateral',
+  'lateral-R':'lateral',
+  'short':    'short',
+  'costura':  'costura',
+};
+const shadowMat = new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.18 });
+
+// ─── Primitive body ──────────────────────────────────────────
+function cyl(rt,rb,h,s=14){return new THREE.CylinderGeometry(rt,rb,h,s);}
+function mk(geo,mat){return new THREE.Mesh(geo,mat);}
+const body = new THREE.Group();
+const head = mk(new THREE.SphereGeometry(0.115,20,16), skinMat); head.scale.set(1,1.08,0.94); head.position.y=0.88;
+const neck = mk(cyl(0.048,0.056,0.09,10), skinMat); neck.position.y=0.765;
+const torso = mk(cyl(0.152,0.128,0.44,16), jerseyMat); torso.position.y=0.498;
+const shortsGeo = mk(cyl(0.136,0.124,0.20,16), shortsMat); shortsGeo.position.y=0.218;
+const collarM = mk(cyl(0.082,0.082,0.025,20), collarMat); collarM.position.y=0.716;
+const lUA = mk(cyl(0.046,0.040,0.24,10), jerseyMat); lUA.rotation.z=Math.PI/5.8; lUA.position.set(-0.212,0.548,0);
+const rUA = lUA.clone(); rUA.material = jerseyMat; rUA.rotation.z=-Math.PI/5.8; rUA.position.set(0.212,0.548,0);
+const lFA = mk(cyl(0.034,0.026,0.22,10), skinMat); lFA.rotation.z=Math.PI/3.6; lFA.position.set(-0.348,0.368,0);
+const rFA = lFA.clone(); rFA.material=skinMat; rFA.rotation.z=-Math.PI/3.6; rFA.position.set(0.348,0.368,0);
+const lTh = mk(cyl(0.062,0.054,0.26,12), skinMat); lTh.position.set(-0.078,0.002,0);
+const rTh = lTh.clone(); rTh.material=skinMat; rTh.position.set(0.078,0.002,0);
+const lSh = mk(cyl(0.048,0.031,0.30,12), skinMat); lSh.position.set(-0.078,-0.295,0);
+const rSh = lSh.clone(); rSh.material=skinMat; rSh.position.set(0.078,-0.295,0);
+const shadowDisc = mk(new THREE.CircleGeometry(0.26,32), shadowMat); shadowDisc.rotation.x=-Math.PI/2; shadowDisc.position.y=-0.448;
+body.add(head,neck,torso,shortsGeo,collarM,lUA,rUA,lFA,rFA,lTh,rTh,lSh,rSh,shadowDisc);
+scene.add(body);
+
+// ─── Floor ───────────────────────────────────────────────────
+let _floorMat = null;
+(()=>{
+  const floorY = -0.448;
+  const W = 6, D = 6;
+
+  // Base plane with subtle gradient via vertex colors
+  const floorGeo = new THREE.PlaneGeometry(W, D, 1, 1);
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0xf5f5f0,
+    roughness: 0.92,
+    metalness: 0.08,
+  });
+  _floorMat = floorMat;
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = floorY;
+  scene.add(floor);
+
+  // Subtle reflective sheen overlay
+  const shineGeo = new THREE.PlaneGeometry(W, D);
+  const shineMat = new THREE.MeshBasicMaterial({
+    color: 0xe8e8e0, transparent: true, opacity: 0.18,
+  });
+  const shine = new THREE.Mesh(shineGeo, shineMat);
+  shine.rotation.x = -Math.PI / 2;
+  shine.position.y = floorY + 0.001;
+  scene.add(shine);
+
+  // Grid lines
+  const gridHelper = new THREE.GridHelper(W, 10, 0xccccbb, 0xccccbb);
+  gridHelper.position.y = floorY + 0.002;
+  gridHelper.material.transparent = true;
+  gridHelper.material.opacity = 0.55;
+  scene.add(gridHelper);
+
+  // Center spotlight glow circle under feet
+  const glowGeo = new THREE.CircleGeometry(0.55, 48);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xddddcc, transparent: true, opacity: 0.22,
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = floorY + 0.003;
+  scene.add(glow);
+})();
+
+// ─── GLB loader (sectioned parts) ────────────────────────────
+let glbModel = null;
+const gltfLoader = new GLTFLoader();
+const _glbGroup  = new THREE.Group();
+const _partFiles = ['tronco','manga-L','manga-R','lateral-L','lateral-R','short','costura'];
+let _partsLoaded = 0;
+
+function _onAllPartsLoaded() {
+  glbModel = _glbGroup;
+  const box = new THREE.Box3().setFromObject(_glbGroup);
+  const sc  = 1.7 / box.getSize(new THREE.Vector3()).y;
+  _glbGroup.scale.setScalar(sc); _glbGroup.updateMatrixWorld(true);
+  const box2   = new THREE.Box3().setFromObject(_glbGroup);
+  const center = box2.getCenter(new THREE.Vector3());
+  _glbGroup.position.set(-center.x, -box2.min.y - 0.44, -center.z);
+  scene.add(_glbGroup); _glbGroup.updateMatrixWorld(true);
+  body.visible = false;
+  controls.target.set(0, (box2.max.y - box2.min.y) * 0.5 - 0.44, 0);
+  controls.update();
+  drawNameCanvas(); placeDecal();
+  setStatus('Modelo carregado'); requestRender();
+}
+
+setStatus('Carregando modelo 3D…');
+_partFiles.forEach(name => {
+  gltfLoader.load(`objects/${name}.glb`, gltf => {
+    gltf.scene.traverse(child => {
+      if (!child.isMesh) return;
+      child.material = partMats[_partMatKey[name]];
+      child.userData.partKey = _partMatKey[name];
+      child.castShadow = false; child.receiveShadow = false;
+    });
+    _glbGroup.add(gltf.scene);
+    _partsLoaded++;
+    setStatus(`Carregando ${_partsLoaded}/${_partFiles.length}…`);
+    if (_partsLoaded === _partFiles.length) _onAllPartsLoaded();
+  }, undefined, err => {
+    console.error(`[TriSuit] Erro ao carregar ${name}.glb:`, err);
+    _partsLoaded++;
+    if (_partsLoaded === _partFiles.length) _onAllPartsLoaded();
+  });
+});
+
+// ─── Render loop ─────────────────────────────────────────────
+function loop(){
+  requestAnimationFrame(loop);
+  const ctrlDirty = controls.update();
+  if(ctrlDirty || _renderFrames > 0){
+    renderer.render(scene, camera);
+    if(!ctrlDirty && _renderFrames > 0) _renderFrames--;
+  }
+}
+loop();
+
+window.addEventListener('resize',()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  requestRender();
+});
+
+// ─── Camera ──────────────────────────────────────────────────
+function animateTo(tx,ty,tz,ms=500){
+  const s=camera.position.clone(),e=new THREE.Vector3(tx,ty,tz),t0=performance.now();
+  const wasD=controls.enableDamping; controls.enableDamping=false;
+  function step(now){
+    const t=Math.min((now-t0)/ms,1),et=1-Math.pow(1-t,3);
+    camera.position.lerpVectors(s,e,et); controls.update(); requestRender();
+    if(t<1)requestAnimationFrame(step); else controls.enableDamping=wasD;
+  }
+  requestAnimationFrame(step);
+}
+let _viewingBack = false;
+window.toggleView = function(){
+  _viewingBack = !_viewingBack;
+  const btn = document.getElementById('viewToggleBtn');
+  if(_viewingBack){
+    controls.target.set(0,.42,0); animateTo(0,.42,-2.5); setStatus('Vista traseira');
+    btn.classList.add('active'); btn.title='Vista frontal';
+  } else {
+    controls.target.set(0,.42,0); animateTo(0,.42,2.5); setStatus('Vista frontal');
+    btn.classList.remove('active'); btn.title='Vista traseira';
+  }
+};
+window.zoomIn    = ()=>{if(camera.position.distanceTo(controls.target)>controls.minDistance+.1){camera.position.lerp(controls.target,.18);controls.update();requestRender();}};
+window.zoomOut   = ()=>{const d=camera.position.distanceTo(controls.target);if(d<controls.maxDistance-.1){const dir=camera.position.clone().sub(controls.target).normalize();camera.position.addScaledVector(dir,.35);controls.update();requestRender();}};
+const _camDefaultY = 0.42;
+window.camUp = ()=>{
+  const dy = 0.12;
+  const newY = Math.min(controls.target.y + dy, 1.6);
+  const delta = newY - controls.target.y;
+  controls.target.y = newY;
+  camera.position.y += delta;
+  controls.update(); requestRender();
+};
+window.camDown = ()=>{
+  const dy = 0.12;
+  const newY = Math.max(controls.target.y - dy, -0.5);
+  const delta = newY - controls.target.y;
+  controls.target.y = newY;
+  camera.position.y += delta;
+  controls.update(); requestRender();
+};
+window.camCenter = ()=>{
+  const delta = _camDefaultY - controls.target.y;
+  controls.target.y = _camDefaultY;
+  camera.position.y += delta;
+  controls.update(); requestRender(); setStatus('Câmera centralizada');
+};
+
+// ─── Status ──────────────────────────────────────────────────
+var _st;
+function setStatus(msg){
+  const el=document.getElementById('statusBar');
+  el.textContent=msg; el.classList.add('vis');
+  clearTimeout(_st); _st=setTimeout(()=>el.classList.remove('vis'),2200);
+}
+
+// ─── Generic CMYK block builder ──────────────────────────────
+function _makeCmykBlock(anchorId, initialColor, applyFn) {
+  const {c:c0,m:m0,y:y0,k:k0} = hexToCmyk(initialColor);
+  const hex0 = cmykToHex(c0,m0,y0,k0);
+  const block = document.createElement('div');
+  block.className = 'cmyk-block'; block.id = anchorId+'-block'; block.style.display = 'none';
+  block.innerHTML = `
+    <div class="cmyk-title"><div class="cmyk-dot" data-r="dot" style="background:${hex0}"></div>Cor personalizada</div>
+    <div class="cmyk-row"><span class="cmyk-letter lc">C</span><input type="range" min="0" max="100" value="${c0}" data-ch="C" class="cmyk-range cmyk-c"><span class="cmyk-val" data-v="C">${c0}%</span></div>
+    <div class="cmyk-row"><span class="cmyk-letter lm">M</span><input type="range" min="0" max="100" value="${m0}" data-ch="M" class="cmyk-range cmyk-m"><span class="cmyk-val" data-v="M">${m0}%</span></div>
+    <div class="cmyk-row"><span class="cmyk-letter ly">Y</span><input type="range" min="0" max="100" value="${y0}" data-ch="Y" class="cmyk-range cmyk-y"><span class="cmyk-val" data-v="Y">${y0}%</span></div>
+    <div class="cmyk-row"><span class="cmyk-letter lk">K</span><input type="range" min="0" max="100" value="${k0}" data-ch="K" class="cmyk-range cmyk-k"><span class="cmyk-val" data-v="K">${k0}%</span></div>
+    <div class="cmyk-preview">
+      <div class="cmyk-swatch" data-r="swatch" style="background:${hex0}"></div>
+      <div class="cmyk-hex"><small>Hex resultante</small><span data-r="hex">${hex0.toUpperCase()}</span></div>
+    </div>`;
+  block.addEventListener('input', e => {
+    if (!e.target.matches('input[type=range]')) return;
+    const c=+block.querySelector('[data-ch="C"]').value, m=+block.querySelector('[data-ch="M"]').value,
+          y=+block.querySelector('[data-ch="Y"]').value, k=+block.querySelector('[data-ch="K"]').value;
+    ['C','M','Y','K'].forEach((ch,i)=>block.querySelector(`[data-v="${ch}"]`).textContent=[c,m,y,k][i]+'%');
+    const hex=cmykToHex(c,m,y,k);
+    block.querySelector('[data-r="dot"]').style.background=hex;
+    block.querySelector('[data-r="swatch"]').style.background=hex;
+    block.querySelector('[data-r="hex"]').textContent=hex.toUpperCase();
+    applyFn(hex);
+  });
+  document.getElementById(anchorId).after(block);
+  return block;
+}
+
+// ─── Jersey color ─────────────────────────────────────────────
+const jerseyColors=[
+  {c:'#1a3a6b',n:'Azul Marinho'},{c:'#123d1a',n:'Verde Escuro'},{c:'#d1d77f',n:'Areia'},
+  {c:'#8b0000',n:'Vermelho'},{c:'#1a5c1a',n:'Verde'},{c:'#000000',n:'Preto'},
+  {c:'#1a1a3e',n:'Índigo'},{c:'#4a0080',n:'Roxo'},{c:'#005f5f',n:'Teal'},
+  {c:'#8b4513',n:'Terracota'},{c:'#c5a800',n:'Dourado'},{c:'#b5b5b5',n:'Prata'}
+];
+function buildJerseyColorDots(){
+  const el=document.getElementById('jerseyColorDots');
+  jerseyColors.forEach(({c,n})=>{
+    const dot=document.createElement('div');
+    dot.className='dot'+(c===state.jersey.color?' active':''); dot.style.background=c; dot.title=n;
+    dot.onclick=()=>{
+      state.jersey.color=c;
+      el.querySelectorAll('.dot').forEach(d=>d.classList.remove('active')); dot.classList.add('active');
+      document.getElementById('jerseyColorDots-block').style.display='none';
+      updateCollarBaseDot(c);
+      applyJerseyColor(); setStatus('Jersey: '+n);
+    };
+    el.appendChild(dot);
+  });
+  const wrap=document.createElement('div'); wrap.className='dot-wrap';
+  const dot=document.createElement('div'); dot.className='dot rainbow'; dot.title='Outra cor';
+  const lbl=document.createElement('div'); lbl.className='dot-lbl'; lbl.textContent='Outra';
+  dot.onclick=()=>{
+    el.querySelectorAll('.dot').forEach(d=>d.classList.remove('active')); dot.classList.add('active');
+    document.getElementById('jerseyColorDots-block').style.display='';
+    setStatus('Jersey: cor personalizada');
+  };
+  wrap.append(dot,lbl); el.appendChild(wrap);
+  _makeCmykBlock('jerseyColorDots', state.jersey.color, hex=>{
+    state.jersey.color=hex; updateCollarBaseDot(hex); applyJerseyColor();
+  });
+}
+function updateJerseyPartSwatches(){
+  const sw = {
+    tronco:  state.parts.tronco  || state.jersey.color,
+    manga:   state.parts.manga,
+    lateral: state.parts.lateral,
+    costura: state.parts.costura,
+    gola:    state.collar.color
+  };
+  Object.entries(sw).forEach(([k,v])=>{ const el=document.getElementById('jpsw-'+k); if(el) el.style.background=v; });
+}
+function applyJerseyColor(){
+  partMats.tronco.color.set(state.jersey.color);
+  state.parts.tronco = state.jersey.color;
+  paintJerseyCanvas(); jerseyTex.needsUpdate=true;
+  updateJerseyPartSwatches(); updateConfigCode(); requestRender();
+}
+function updateCollarBaseDot(color){
+  const d=document.getElementById('cpBase'); if(d) d.style.background=color;
+  if(state.collar.preset==='base'){state.collar.color=color;collarMat.color.set(color);}
+}
+// ─── Collar ──────────────────────────────────────────────────
+function selectCollarPreset(preset){
+  state.collar.preset=preset;
+  document.getElementById('collarPresets')?.querySelectorAll('.dot').forEach(d=>d.classList.remove('active'));
+  const block=document.getElementById('collarCmykBlock');
+  if(preset==='base'){
+    document.getElementById('cpBase').classList.add('active');
+    state.collar.color=state.jersey.color; state.collar.cmyk=hexToCmyk(state.jersey.color);
+    block.style.display='none'; syncCollarSliders();
+    collarMat.color.set(state.collar.color); updateJerseyPartSwatches(); requestRender(); setStatus('Gola: Cor base');
+  } else if(preset==='black'){
+    document.getElementById('cpBlack').classList.add('active');
+    state.collar.color='#000'; state.collar.cmyk={c:0,m:0,y:0,k:100};
+    block.style.display='none'; syncCollarSliders();
+    collarMat.color.set('#000'); updateJerseyPartSwatches(); requestRender(); setStatus('Gola: Preto');
+  } else if(preset==='white'){
+    document.getElementById('cpWhite').classList.add('active');
+    state.collar.color='#fff'; state.collar.cmyk={c:0,m:0,y:0,k:0};
+    block.style.display='none'; syncCollarSliders();
+    collarMat.color.set('#fff'); updateJerseyPartSwatches(); requestRender(); setStatus('Gola: Branco');
+  } else {
+    document.getElementById('cpOther').classList.add('active');
+    block.style.display='';
+    setStatus('Gola: Personalizada');
+  }
+}
+function syncCollarSliders(){
+  const{c,m,y,k}=state.collar.cmyk;
+  ['gC','gM','gY','gK'].forEach((id,i)=>document.getElementById(id).value=[c,m,y,k][i]);
+  document.getElementById('gCv').textContent=c+'%'; document.getElementById('gMv').textContent=m+'%';
+  document.getElementById('gYv').textContent=y+'%'; document.getElementById('gKv').textContent=k+'%';
+  const hex=cmykToHex(c,m,y,k);
+  document.getElementById('collarSwatchPrev').style.background=hex;
+  document.getElementById('collarHexDisp').textContent=hex.toUpperCase();
+  document.getElementById('collarDot').style.background=hex;
+}
+function onCollarCmyk(){
+  const c=+document.getElementById('gC').value,m=+document.getElementById('gM').value,
+        y=+document.getElementById('gY').value,k=+document.getElementById('gK').value;
+  state.collar.cmyk={c,m,y,k};
+  document.getElementById('gCv').textContent=c+'%'; document.getElementById('gMv').textContent=m+'%';
+  document.getElementById('gYv').textContent=y+'%'; document.getElementById('gKv').textContent=k+'%';
+  const hex=cmykToHex(c,m,y,k); state.collar.color=hex;
+  document.getElementById('collarSwatchPrev').style.background=hex;
+  document.getElementById('collarHexDisp').textContent=hex.toUpperCase();
+  document.getElementById('collarDot').style.background=hex;
+  collarMat.color.set(hex); updateJerseyPartSwatches(); requestRender();
+  setStatus('Gola C'+c+' M'+m+' Y'+y+' K'+k);
+}
+window.onCollarCmyk = onCollarCmyk;
+window.selectCollarPreset = selectCollarPreset;
+
+// ─── Shorts ──────────────────────────────────────────────────
+const shortsColors=[
+  {c:'#0a0a0a',n:'Preto'},{c:'#12143d',n:'Marinho'},{c:'#123d1a',n:'Verde'},
+  {c:'#d3d089',n:'Areia'},{c:'#8b0000',n:'Vermelho'}
+];
+const shortsDetails=[{id:'solid',n:'Sólido'},{id:'panel',n:'Painel'},{id:'pinstripe',n:'Pinstripe'}];
+function buildShortsGrid(){
+  const el=document.getElementById('shortsColorGrid');
+  shortsColors.forEach(({c,n})=>{
+    const sw=document.createElement('div'); sw.className='dot'+(c===state.shorts.color?' active':''); sw.style.background=c; sw.title=n;
+    sw.onclick=()=>{state.shorts.color=c;el.querySelectorAll('.dot').forEach(s=>s.classList.remove('active'));sw.classList.add('active');setShortsColor(c);};
+    el.appendChild(sw);
+  });
+}
+function buildShortsDetailGrid(){
+  const el=document.getElementById('shortsDetailGrid');
+  if(!el) return;
+  shortsDetails.forEach(({id,n})=>{
+    const btn=document.createElement('button'); btn.className='ppill'+(id===state.shorts.detail?' active':''); btn.textContent=n;
+    btn.onclick=()=>{state.shorts.detail=id;el.querySelectorAll('.ppill').forEach(b=>b.classList.remove('active'));btn.classList.add('active');updateConfigCode();setStatus('Detalhe: '+n);};
+    el.appendChild(btn);
+  });
+}
+
+// ─── Patterns ────────────────────────────────────────────────
+const patterns=[
+  {id:'none',n:'Sem padrão'},{id:'stripe',n:'Listras'},{id:'diagonal',n:'Diagonal'},
+  {id:'lateral',n:'Lateral'},{id:'chevron',n:'Chevron'},{id:'blocos',n:'Blocos'},{id:'triângulo',n:'Triângulo'}
+];
+function buildPatternGrid(){
+  const el=document.getElementById('patternGrid');
+  if(!el) return;
+  patterns.forEach(({id,n})=>{
+    const btn=document.createElement('button'); btn.className='ppill'+(id===state.jersey.pattern?' active':''); btn.textContent=n;
+    btn.onclick=()=>{state.jersey.pattern=id;el.querySelectorAll('.ppill').forEach(b=>b.classList.remove('active'));btn.classList.add('active');applyJerseyColor();setStatus('Padrão: '+n);};
+    el.appendChild(btn);
+  });
+}
+const accentPresets=[
+  {c:'#e8307a',n:'Rosa'},{c:'#1a6b3a',n:'Verde'},{c:'#1a3a6b',n:'Azul'},
+  {c:'#e8a030',n:'Laranja'},{c:'#8b0000',n:'Vermelho'},{c:'#000000',n:'Preto'}
+];
+function buildAccentDots(){
+  const el=document.getElementById('accentDots');
+  if(!el) return;
+  accentPresets.forEach(({c,n})=>{
+    const dot=document.createElement('div'); dot.className='dot accent-dot'+(c===ACCENT?' active':''); dot.style.background=c; dot.title=n;
+    dot.onclick=()=>{
+      ACCENT=c;
+      document.getElementById('accentDots-block').style.display='none';
+      el.querySelectorAll('.accent-dot').forEach(d=>d.classList.remove('active')); dot.classList.add('active');
+      applyJerseyColor(); setStatus('Estampa: '+n);
+    };
+    el.appendChild(dot);
+  });
+  const wrap=document.createElement('div'); wrap.className='dot-wrap';
+  const dot=document.createElement('div'); dot.className='dot rainbow accent-dot'; dot.title='Outra';
+  const lbl=document.createElement('div'); lbl.className='dot-lbl'; lbl.textContent='Outra';
+  dot.onclick=()=>{
+    el.querySelectorAll('.accent-dot').forEach(d=>d.classList.remove('active')); dot.classList.add('active');
+    document.getElementById('accentDots-block').style.display='';
+  };
+  wrap.append(dot,lbl); el.appendChild(wrap);
+  _makeCmykBlock('accentDots', ACCENT, hex=>{ ACCENT=hex; applyJerseyColor(); setStatus('Estampa: '+hex.toUpperCase()); });
+}
+window.setAccentColor = function(hex){ ACCENT=hex; applyJerseyColor(); setStatus('Estampa: '+hex.toUpperCase()); };
+
+// ─── SVG target-part system ──────────────────────────────────
+let _svgTarget = 'tronco';
+const _svgCanvases = {};
+
+function _getSvgCanvas(partKey) {
+  if (!_svgCanvases[partKey]) {
+    const c = document.createElement('canvas'); c.width = _texBase * 2; c.height = _texBase * 2;
+    const ctx = c.getContext('2d');
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    _svgCanvases[partKey] = { canvas: c, ctx, tex };
+  }
+  return _svgCanvases[partKey];
+}
+
+function _partColor(partKey) {
+  return partKey === 'short' ? state.shorts.color : (state.parts[partKey] || '#888888');
+}
+
+function _matsForPart(partKey) {
+  if (partKey === 'short') return [partMats.short, shortsMat];
+  if (partKey === 'tronco') return [jerseyMat];
+  return partMats[partKey] ? [partMats[partKey]] : [];
+}
+
+function _paintSvgCanvas(partKey) {
+  if (partKey === 'tronco') { paintJerseyCanvas(); return; }
+  const { canvas: c, ctx, tex } = _getSvgCanvas(partKey);
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = _partColor(partKey);
+  ctx.fillRect(0, 0, W, H);
+  if (state.jersey.svgImg) {
+    ctx.save();
+    ctx.globalAlpha = state.jersey.svgOpacity;
+    const sc = state.jersey.svgScale;
+    const iw = W * sc, ih = H * sc;
+    const cx = W / 2 - (state.jersey.svgOffsetX || 0);
+    const cy = H / 2 + (state.jersey.svgOffsetY || 0);
+    ctx.translate(cx, cy);
+    ctx.scale(-1, 1); // base flip to counteract mirrored UV mapping
+    ctx.rotate((state.jersey.svgRotation || 0) * Math.PI / 180);
+    if (state.jersey.svgFlip) ctx.scale(-1, 1);
+    ctx.drawImage(state.jersey.svgImg, -iw / 2, -ih / 2, iw, ih);
+    ctx.restore();
+  }
+  tex.needsUpdate = true;
+}
+
+window.setSVGTarget = function(newPart) {
+  const oldPart = _svgTarget;
+  _svgTarget = newPart;
+  // Clear SVG from old target
+  if (oldPart !== newPart) {
+    if (oldPart === 'tronco') {
+      paintJerseyCanvas(); // _svgTarget already changed → no SVG on tronco
+    } else if (_svgCanvases[oldPart]) {
+      const mats = _matsForPart(oldPart);
+      mats.forEach(m => { m.map = null; m.color.set(_partColor(oldPart)); m.needsUpdate = true; });
+    }
+  }
+  // Apply SVG to new target
+  state.jersey.svgOffsetX = 0; state.jersey.svgOffsetY = 0;
+  if (newPart === 'tronco') {
+    paintJerseyCanvas();
+  } else {
+    _paintSvgCanvas(newPart);
+    const { tex } = _getSvgCanvas(newPart);
+    const mats = _matsForPart(newPart);
+    mats.forEach(m => { m.map = tex; m.color.set(0xffffff); m.needsUpdate = true; });
+  }
+  document.querySelectorAll('.svg-part-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.part === newPart)
+  );
+  requestRender();
+};
+
+// ─── SVG Upload ───────────────────────────────────────────────
+window.handleSVGUpload = function(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const blob=new Blob([ev.target.result],{type:'image/svg+xml'});
+    const url=URL.createObjectURL(blob);
+    const img=new Image(); img.onload=()=>{
+      state.jersey.svgImg=img;
+      document.getElementById('uploadZone').classList.add('has-file');
+      document.getElementById('fileBadge').style.display='inline-flex';
+      document.getElementById('fileName').textContent=file.name;
+      document.getElementById('svgControls').style.display='block';
+      if (_svgTarget !== 'tronco') {
+        _paintSvgCanvas(_svgTarget);
+        const { tex } = _getSvgCanvas(_svgTarget);
+        _matsForPart(_svgTarget).forEach(m => { m.map = tex; m.color.set(0xffffff); m.needsUpdate = true; });
+        requestRender();
+      } else {
+        applyJerseyColor();
+      }
+      setStatus('SVG: '+file.name);
+    }; img.src=url;
+  };
+  reader.readAsText(file);
+};
+window.removeSVG = function(){
+  if (_svgTarget !== 'tronco') {
+    const mats = _matsForPart(_svgTarget);
+    mats.forEach(m => { m.map = null; m.color.set(_partColor(_svgTarget)); m.needsUpdate = true; });
+  }
+  state.jersey.svgImg=null; state.jersey.svgOffsetX=0; state.jersey.svgOffsetY=0; state.jersey.svgRotation=0; state.jersey.svgFlip=false;
+  ['svgOpacity','svgOpacityNum'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=90;});
+  ['svgScale','svgScaleNum'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=30;});
+  ['svgRotation','svgRotationNum'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=0;});
+  const fc=document.getElementById('svgFlip'); if(fc) fc.checked=false;
+  document.getElementById('uploadZone').classList.remove('has-file');
+  document.getElementById('fileBadge').style.display='none';
+  document.getElementById('svgControls').style.display='none';
+  document.getElementById('svgUpload').value='';
+  applyJerseyColor(); setStatus('Estampa removida');
+};
+window.updateSVGOpacity  = function(v){ const n=Math.max(10,Math.min(100,Math.round(+v)||10)); state.jersey.svgOpacity=n/100; document.getElementById('svgOpacity').value=n; document.getElementById('svgOpacityNum').value=n; _paintSvgCanvas(_svgTarget); requestRender(); };
+window.updateSVGScale    = function(v){ const n=Math.max(5,Math.min(150,Math.round(+v)||5)); state.jersey.svgScale=n/100; document.getElementById('svgScale').value=n; document.getElementById('svgScaleNum').value=n; _paintSvgCanvas(_svgTarget); requestRender(); };
+window.updateSVGRotation = function(v){ const n=Math.max(-180,Math.min(180,Math.round(+v)||0)); state.jersey.svgRotation=n; document.getElementById('svgRotation').value=n; document.getElementById('svgRotationNum').value=n; _paintSvgCanvas(_svgTarget); requestRender(); };
+window.toggleSVGFlip     = function(on){ state.jersey.svgFlip=on; _paintSvgCanvas(_svgTarget); requestRender(); };
+window.moveSVG = function(dx, dy){
+  state.jersey.svgOffsetX = (state.jersey.svgOffsetX||0) + dx;
+  state.jersey.svgOffsetY = (state.jersey.svgOffsetY||0) + dy;
+  _paintSvgCanvas(_svgTarget); requestRender();
+};
+window.centerSVGH = function(){
+  state.jersey.svgOffsetX = 0; _paintSvgCanvas(_svgTarget); requestRender();
+};
+window.centerSVGV = function(){
+  state.jersey.svgOffsetY = 0; _paintSvgCanvas(_svgTarget); requestRender();
+};
+window.centerSVG = function(){
+  state.jersey.svgOffsetX = 0; state.jersey.svgOffsetY = 0; _paintSvgCanvas(_svgTarget); requestRender();
+};
+
+// ─── Part colors ─────────────────────────────────────────────
+const _partSwatchColors = ['#ffffff','#f0f0f0','#0a0a0a','#1a3a6b','#e8307a','#00c853','#ff6b00','#ffd600','#7b1fa2','#c8956c'];
+function _buildPartSwatches(containerId, partKey) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  _partSwatchColors.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'dot'; d.style.background = c; d.title = c;
+    d.onclick = () => {
+      wrap.querySelectorAll('.dot').forEach(x=>x.classList.remove('active'));
+      d.classList.add('active');
+      document.getElementById(containerId+'-block').style.display='none';
+      setPartColor(partKey, c);
+    };
+    wrap.appendChild(d);
+  });
+  const ow=document.createElement('div'); ow.className='dot-wrap';
+  const od=document.createElement('div'); od.className='dot rainbow'; od.title='Outra cor';
+  const ol=document.createElement('div'); ol.className='dot-lbl'; ol.textContent='Outra';
+  od.onclick=()=>{
+    wrap.querySelectorAll('.dot').forEach(x=>x.classList.remove('active'));
+    od.classList.add('active');
+    document.getElementById(containerId+'-block').style.display='';
+  };
+  ow.append(od,ol); wrap.appendChild(ow);
+  _makeCmykBlock(containerId, state.parts[partKey], hex=>setPartColor(partKey, hex));
+}
+_buildPartSwatches('swManga',   'manga');
+_buildPartSwatches('swLateral', 'lateral');
+_buildPartSwatches('swCostura', 'costura');
+
+window.setPartColor = function(part, color) {
+  state.parts[part] = color;
+  if (_svgTarget === part && part !== 'tronco' && _svgCanvases[part]) {
+    _paintSvgCanvas(part); // repaint canvas with updated color underneath SVG
+  } else {
+    partMats[part].color.set(color);
+  }
+  updateJerseyPartSwatches(); requestRender();
+};
+window.toggleSVGMove = function(){
+  svgMoveMode = !svgMoveMode;
+  if (svgMoveMode && decalMoveMode) {
+    decalMoveMode = false;
+    controls.enabled = false;
+    document.getElementById('decalMoveBtn')?.classList.remove('mv-on');
+  } else {
+    controls.enabled = !svgMoveMode;
+  }
+  canvas.style.cursor = svgMoveMode ? 'crosshair' : (decalMoveMode ? 'crosshair' : '');
+  document.getElementById('svgMoveBtn')?.classList.toggle('mv-on', svgMoveMode);
+  setStatus(svgMoveMode ? 'Modo cursor: clique no modelo para posicionar a estampa' : 'Modo cursor desativado');
+};
+
+// ─── Name color swatches ─────────────────────────────────────
+const nameColors=['rgba(255,255,255,0.95)','#000000','#e8307a','#f5c518','#00c853','#1a3a6b'];
+function buildNameColorSwatches(){
+  const el=document.getElementById('nameColorSwatches');
+  nameColors.forEach(c=>{
+    const sw=document.createElement('div'); sw.className='sw'; sw.style.background=c;
+    if(c==='rgba(255,255,255,0.95)') sw.style.outline='1.5px solid rgba(0,0,0,0.15)';
+    sw.onclick=()=>{state.jersey.nameColor=c;el.querySelectorAll('.sw').forEach(s=>s.classList.remove('active'));sw.classList.add('active');drawNameCanvas();nmTex.needsUpdate=true;requestRender();};
+    el.appendChild(sw);
+  });
+  el.querySelector('.sw').classList.add('active');
+}
+
+// ─── Models ──────────────────────────────────────────────────
+const models=[
+  {id:'basic',code:'M1',name:'Básico',sub:'Dry-fit, corte regular.',feats:['Dry-fit','Regular','1 cor'],badge:'ENTRY',bc:'#999',bb:'rgba(255,255,255,.1)',ic:'#999'},
+  {id:'intermediate',code:'M2',name:'Intermediário',sub:'Compressivo, semi-ajustado.',feats:['Compressão','Bolsos','2 cores'],badge:'MID',bc:'#00c853',bb:'rgba(0,200,83,.12)',ic:'#00c853'},
+  {id:'tech',code:'M3',name:'Tech',sub:'Aerodinâmico, UV50+.',feats:['Aero','UV50+','Flatlock'],badge:'TECH',bc:'#e8307a',bb:'rgba(232,48,122,.12)',ic:'#e8307a'},
+  {id:'hightech',code:'M4',name:'High Tech',sub:'Carvico®, sublimação total.',feats:['Carvico®','Sublim.','Aero++'],badge:'ELITE',bc:'#c5a800',bb:'rgba(197,168,0,.12)',ic:'#c5a800'},
+];
+function buildModelGrid(){
+  const el=document.getElementById('modelGrid'); el.innerHTML='';
+  models.forEach(m=>{
+    const card=document.createElement('div'); card.className='model-card'+(m.id===state.model?' active':'');
+    card.onclick=()=>{state.model=m.id;document.querySelectorAll('.model-card').forEach(c=>c.classList.remove('active'));card.classList.add('active');updateConfigCode();setStatus('Modelo: '+m.name);};
+    card.innerHTML=`<div class="model-card-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></div>
+<div class="model-badge" style="color:${m.bc};background:${m.bb}">${m.badge}</div>
+<div class="model-body">
+  <div class="model-icon" style="background:${m.bb}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="${m.ic}" stroke-width="2" stroke-linecap="round"><path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.57a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.57a2 2 0 00-1.34-2.23z"/></svg></div>
+  <div class="model-name">${m.name}</div><div class="model-sub">${m.sub}</div>
+  <div class="model-feats">${m.feats.map(f=>`<span class="mfeat">${f}</span>`).join('')}</div>
+</div>`;
+    el.appendChild(card);
+  });
+}
+
+// ─── Config code ─────────────────────────────────────────────
+const jColorCodes={'#1a3a6b':'A','#123d1a':'B','#d1d77f':'C','#8b0000':'D','#1a5c1a':'E','#000000':'F','#1a1a3e':'G','#4a0080':'H','#005f5f':'I','#8b4513':'J','#c5a800':'K','#b5b5b5':'L'};
+const sColorCodes={'#0a0a0a':'1','#12143d':'2','#123d1a':'3','#d3d089':'4','#8b0000':'5'};
+const patCodes={none:'0',stripe:'S',diagonal:'D',lateral:'L',chevron:'C',blocos:'B','triângulo':'T'};
+const detCodes={solid:'X',panel:'P',pinstripe:'N'};
+function getConfigCode(){
+  const m=models.find(x=>x.id===state.model)||models[0];
+  return m.code+'-'+(jColorCodes[state.jersey.color]||'?')+(sColorCodes[state.shorts.color]||'1')+(patCodes[state.jersey.pattern]||'0')+(detCodes[state.shorts.detail]||'X');
+}
+function updateConfigCode(){
+  document.getElementById('cpCodeText').textContent = getConfigCode();
+}
+window.toggleCodePanel = function(){
+  document.getElementById('codePanel').classList.toggle('cp-open');
+};
+window.copyCode = function(){
+  const c=getConfigCode();
+  navigator.clipboard.writeText(c).then(()=>setStatus('Código '+c+' copiado!')).catch(()=>setStatus('Código: '+c));
+};
+
+// ─── Window functions ─────────────────────────────────────────
+window.setJerseyColor = function(c){
+  state.jersey.color=c; jerseyMat.color&&(jerseyMat.color.set(c));
+  partMats.tronco.color.set(c);
+  applyJerseyColor();
+};
+window.setCollarColor = function(c){
+  state.collar.color=c; collarMat.color.set(c); requestRender();
+};
+window.setShortsColor = function(c){
+  state.shorts.color=c;
+  if (_svgTarget === 'short' && _svgCanvases['short']) {
+    _paintSvgCanvas('short');
+  } else {
+    shortsMat.color.set(c); partMats.short.color.set(c);
+  }
+  updateConfigCode(); requestRender(); setStatus('Shorts: '+c);
+};
+window.setName = function(v){
+  state.jersey.text=v; drawNameCanvas(); placeDecal(); requestRender();
+};
+window.setNameSize = function(v){
+  state.jersey.textSize=parseInt(v);
+  document.getElementById('textSizeVal').textContent=v;
+  drawNameCanvas(); placeDecal(); requestRender();
+};
+window.setNamePos = function(pos){
+  state.jersey.namePos=pos; state.jersey.nameDeltaY=0; placeDecal();
+  document.querySelectorAll('.npb').forEach(b=>b.classList.remove('active'));
+  const ids={topo:'namePosTopo',centro:'namePosCentro',base:'namePosBase'};
+  document.getElementById(ids[pos])?.classList.add('active');
+  requestRender(); setStatus('Posição: '+pos.charAt(0).toUpperCase()+pos.slice(1));
+};
+window.moveDecal = function(dx, dy){
+  state.jersey.nameDeltaX = (state.jersey.nameDeltaX||0) + dx;
+  state.jersey.nameDeltaY = (state.jersey.nameDeltaY||0) + dy;
+  placeDecal(); requestRender();
+};
+window.centerDecalH = function(){
+  state.jersey.nameDeltaX = 0;
+  placeDecal(); requestRender(); setStatus('Nome centralizado horizontalmente');
+};
+window.centerDecalV = function(){
+  state.jersey.nameDeltaY = 0;
+  placeDecal(); requestRender(); setStatus('Nome centralizado verticalmente');
+};
+window.toggleDecalMove = function(){
+  decalMoveMode = !decalMoveMode;
+  if (decalMoveMode && svgMoveMode) {
+    svgMoveMode = false;
+    document.getElementById('svgMoveBtn')?.classList.remove('mv-on');
+  }
+  controls.enabled = !decalMoveMode;
+  canvas.style.cursor = decalMoveMode ? 'crosshair' : '';
+  document.getElementById('decalMoveBtn').classList.toggle('mv-on', decalMoveMode);
+  setStatus(decalMoveMode ? 'Modo cursor: clique no modelo para posicionar o nome' : 'Modo cursor desativado');
+};
+
+// ─── Reset ───────────────────────────────────────────────────
+window.tryReset = function(){
+  document.getElementById('resetConfirm').classList.toggle('vis');
+};
+window.confirmReset = function(){
+  document.getElementById('resetConfirm').classList.remove('vis');
+  // Clear SVG canvas from current non-tronco target
+  if (_svgTarget !== 'tronco') {
+    _matsForPart(_svgTarget).forEach(m => { m.map = null; m.color.set(_partColor(_svgTarget)); m.needsUpdate = true; });
+  }
+  _svgTarget = 'tronco';
+  document.querySelectorAll('.svg-part-btn').forEach(b => b.classList.toggle('active', b.dataset.part === 'tronco'));
+  state.jersey.color='#1a3a6b'; state.jersey.pattern='none'; state.jersey.text='';
+  state.jersey.svgImg=null; state.jersey.svgOffsetX=0; state.jersey.svgOffsetY=0; state.jersey.svgRotation=0; state.jersey.svgFlip=false; state.shorts.color='#0a0a0a';
+  ['svgOpacity','svgOpacityNum'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=90;});
+  ['svgScale','svgScaleNum'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=30;});
+  ['svgRotation','svgRotationNum'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=0;});
+  const _fc=document.getElementById('svgFlip'); if(_fc) _fc.checked=false; state.collar.color='#cfcece';
+  jerseyMat.color.set('#1a3a6b'); shortsMat.color.set('#0a0a0a'); collarMat.color.set('#cfcece');
+  document.getElementById('jerseyText').value='';
+  paintJerseyCanvas(); drawNameCanvas(); placeDecal();
+  requestRender(); setStatus('Configuração resetada');
+};
+
+// ─── Bottom panel ─────────────────────────────────────────────
+let _raf=null;
+function _syncZW(){ cancelAnimationFrame(_raf); _raf=null; }
+function _stopZW(reset){ cancelAnimationFrame(_raf); _raf=null; }
+window.togglePanel = function(id, forceOpen){
+  const sh=document.getElementById('bottomSheet');
+  const ab=document.querySelector('.bn-btn.active');
+  const open=sh.classList.contains('bs-open');
+  if(!forceOpen&&open&&ab&&ab.dataset.panel===id){window.closeBottomSheet();return;}
+  document.querySelectorAll('#bsContent .lp-section').forEach(s=>s.classList.remove('lp-active'));
+  document.getElementById(id)?.classList.add('lp-active');
+  document.querySelectorAll('.bn-btn').forEach(b=>b.classList.toggle('active',b.dataset.panel===id));
+  sh.classList.add('bs-open'); _syncZW();
+  sh.addEventListener('transitionend',()=>_stopZW(false),{once:true});
+};
+window.closeBottomSheet = function(){
+  const sh=document.getElementById('bottomSheet');
+  sh.classList.remove('bs-open');
+  document.querySelectorAll('.bn-btn').forEach(b=>b.classList.remove('active'));
+  _syncZW(); sh.addEventListener('transitionend',()=>_stopZW(true),{once:true});
+};
+// ─── Init ─────────────────────────────────────────────────────
+buildModelGrid();
+buildJerseyColorDots();
+updateJerseyPartSwatches();
+_showJerseySection('tronco');
+buildShortsGrid();
+buildShortsDetailGrid();
+buildPatternGrid();
+buildAccentDots();
+buildLightPresets();
+buildNameColorSwatches();
+updateConfigCode();
+// Mark first jersey dot active
+document.querySelector('#jerseyColorDots .dot')?.classList.add('active');
+// Collar: init as "other" with CMYK block hidden (initial color is set)
+document.getElementById('cpOther').classList.add('active');
+document.getElementById('collarCmykBlock').style.display='none';
+
+// ─── Lighting popup toggle ───────────────────────────────────
+const _lpEl  = document.getElementById('lightPopup');
+const _lfBtn = document.getElementById('lightFloatBtn');
+window.toggleLightPopup = function() {
+  const vis = _lpEl.classList.toggle('lp-vis');
+  _lfBtn.classList.toggle('lf-active', vis);
+};
+document.addEventListener('click', e => {
+  if (!_lpEl.classList.contains('lp-vis')) return;
+  if (!_lpEl.contains(e.target) && e.target !== _lfBtn && !_lfBtn.contains(e.target)) {
+    _lpEl.classList.remove('lp-vis');
+    _lfBtn.classList.remove('lf-active');
+  }
+});
+
+// ─── Jersey section switcher ──────────────────────────────────
+function _showJerseySection(partKey) {
+  document.querySelectorAll('#lp-sec-jersey .jps-section').forEach(s => s.classList.remove('jss-active'));
+  document.getElementById('jss-' + partKey)?.classList.add('jss-active');
+}
+
+// ─── Edit mode — camera animation + confirm/cancel ───────────
+let _editMode = false;
+let _editSnapshot = null;
+
+const _partEditCam = {
+  tronco:  { tx:0, ty:.52, tz:0, cx:0,   cy:.52, cz:2.2  },
+  manga:   { tx:0, ty:.55, tz:0, cx:0,   cy:.55, cz:2.2  },
+  lateral: { tx:0, ty:.48, tz:0, cx:1.8, cy:.48, cz:1.8  },
+  short:   { tx:0, ty:.2,  tz:0, cx:0,   cy:.2,  cz:2.2  },
+  costura: { tx:0, ty:.45, tz:0, cx:0,   cy:.45, cz:2.2  },
+  nome:    { tx:0, ty:.52, tz:0, cx:0,   cy:.52, cz:-2.5 },
+};
+
+const _editPartNames = { tronco:'Tórax', manga:'Mangas', lateral:'Laterais', short:'Shorts', costura:'Costura', nome:'Texto' };
+
+function _takeEditSnapshot() {
+  return {
+    parts:       { ...state.parts },
+    jerseyColor: state.jersey.color,
+    collarColor: state.collar.color,
+    collarPreset:state.collar.preset,
+    shortsColor: state.shorts.color,
+    text:        state.jersey.text,
+    textSize:    state.jersey.textSize,
+    nameColor:   state.jersey.nameColor,
+    namePos:     state.jersey.namePos,
+    nameDeltaX:  state.jersey.nameDeltaX || 0,
+    nameDeltaY:  state.jersey.nameDeltaY || 0,
+  };
+}
+
+function _enterEditMode(partKey) {
+  if (_editMode) _doCancel(true);
+  _editMode = true;
+  _editSnapshot = _takeEditSnapshot();
+  const cam = _partEditCam[partKey] || _partEditCam.tronco;
+  controls.target.set(cam.tx, cam.ty, cam.tz);
+  animateTo(cam.cx, cam.cy, cam.cz);
+  const lbl = document.getElementById('ecbLabel');
+  if (lbl) lbl.textContent = 'Editando: ' + (_editPartNames[partKey] || partKey);
+  document.getElementById('editConfirmBar')?.classList.add('ecb-vis');
+}
+
+function _doCancel(silent) {
+  if (!_editSnapshot) { _editMode = false; return; }
+  const s = _editSnapshot;
+  // Restore state values
+  Object.assign(state.parts, s.parts);
+  state.jersey.color   = s.jerseyColor;
+  state.collar.color   = s.collarColor;
+  state.collar.preset  = s.collarPreset;
+  state.shorts.color   = s.shortsColor;
+  state.jersey.text    = s.text;
+  state.jersey.textSize= s.textSize;
+  state.jersey.nameColor = s.nameColor;
+  state.jersey.namePos   = s.namePos;
+  state.jersey.nameDeltaX = s.nameDeltaX;
+  state.jersey.nameDeltaY = s.nameDeltaY;
+  // Re-apply to materials
+  jerseyMat.color && jerseyMat.color.set(s.jerseyColor);
+  partMats.tronco.color.set(s.jerseyColor);
+  partMats.manga.color.set(s.parts.manga);
+  partMats.lateral.color.set(s.parts.lateral);
+  partMats.short.color.set(s.parts.short);
+  partMats.costura.color.set(s.parts.costura);
+  shortsMat.color.set(s.shortsColor);
+  collarMat.color.set(s.collarColor);
+  // Repaint jersey canvas and any active SVG canvases
+  paintJerseyCanvas(); jerseyTex.needsUpdate = true;
+  Object.keys(_svgCanvases).forEach(k => _paintSvgCanvas(k));
+  // Redraw text decal
+  drawNameCanvas(); placeDecal();
+  updateJerseyPartSwatches(); updateConfigCode(); requestRender();
+  _editSnapshot = null; _editMode = false;
+  if (!silent) {
+    document.getElementById('editConfirmBar')?.classList.remove('ecb-vis');
+    setStatus('Alterações descartadas');
+  }
+}
+
+window.confirmEdit = function() {
+  _editSnapshot = null; _editMode = false;
+  document.getElementById('editConfirmBar')?.classList.remove('ecb-vis');
+  setStatus('Alterações confirmadas');
+};
+
+window.cancelEdit = function() { _doCancel(false); };
+
+// ─── Part context popup ──────────────────────────────────────
+const _ppEl = document.getElementById('partPopup');
+const _partLabels = { tronco:'Tórax', manga:'Mangas', lateral:'Laterais', short:'Shorts', costura:'Costura' };
+
+const _ppIconColor   = `<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke-width="1.5"/></svg>`;
+const _ppIconStamp   = `<svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="10" rx="2"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><line x1="3" y1="21" x2="21" y2="21"/></svg>`;
+const _ppIconPattern = `<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`;
+const _ppIconText    = `<svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`;
+
+const _partPopupActions = {
+  tronco: [
+    { icon:_ppIconColor,  label:'Cor',    fn(){ _showJerseySection('tronco'); _enterEditMode('tronco'); window.togglePanel('lp-sec-jersey',true); } },
+    { icon:_ppIconStamp,  label:'Estampa',fn(){ window.setSVGTarget('tronco'); window.togglePanel('lp-sec-svg',true); } },
+    { icon:_ppIconText,   label:'Texto',  fn(){ _enterEditMode('nome'); window.togglePanel('lp-sec-nome',true); } },
+  ],
+  manga: [
+    { icon:_ppIconColor,  label:'Cor',     fn(){ _showJerseySection('manga'); _enterEditMode('manga'); window.togglePanel('lp-sec-jersey',true); } },
+    { icon:_ppIconStamp,  label:'Estampa', fn(){ window.setSVGTarget('manga'); window.togglePanel('lp-sec-svg',true); } },
+  ],
+  lateral: [
+    { icon:_ppIconColor,  label:'Cor',     fn(){ _showJerseySection('lateral'); _enterEditMode('lateral'); window.togglePanel('lp-sec-jersey',true); } },
+    { icon:_ppIconStamp,  label:'Estampa', fn(){ window.setSVGTarget('lateral'); window.togglePanel('lp-sec-svg',true); } },
+  ],
+  short: [
+    { icon:_ppIconColor,  label:'Cor',     fn(){ _enterEditMode('short'); window.togglePanel('lp-sec-shorts',true); } },
+    { icon:_ppIconStamp,  label:'Estampa', fn(){ window.setSVGTarget('short'); window.togglePanel('lp-sec-svg',true); } },
+  ],
+  costura: [
+    { icon:_ppIconColor,  label:'Cor',     fn(){ _showJerseySection('costura'); _enterEditMode('costura'); window.togglePanel('lp-sec-jersey',true); } },
+  ],
+};
+
+function _showPartPopup(partKey, clientX, clientY) {
+  const actions = _partPopupActions[partKey];
+  if (!actions || !_ppEl) return;
+  document.getElementById('ppHeader').textContent = _partLabels[partKey] || partKey;
+  const grid = document.getElementById('ppGrid');
+  grid.innerHTML = '';
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'pp-btn';
+    btn.innerHTML = a.icon + `<span>${a.label}</span>`;
+    btn.addEventListener('click', e => { e.stopPropagation(); a.fn(); _hidePartPopup(); });
+    grid.appendChild(btn);
+  });
+  _ppEl.classList.remove('pp-vis');
+  _ppEl.style.left = '0px'; _ppEl.style.top = '-9999px';
+  const PAD = 14;
+  const pw = 196, ph = actions.length > 2 ? 172 : 130;
+  let x = clientX + 18, y = clientY - Math.round(ph / 2);
+  if (x + pw > window.innerWidth  - PAD) x = clientX - pw - 18;
+  if (x < PAD) x = PAD;
+  if (y < PAD) y = PAD;
+  if (y + ph > window.innerHeight - PAD) y = window.innerHeight - ph - PAD;
+  _ppEl.style.left = x + 'px'; _ppEl.style.top = y + 'px';
+  requestAnimationFrame(() => _ppEl.classList.add('pp-vis'));
+}
+function _hidePartPopup() {
+  if (_ppEl) _ppEl.classList.remove('pp-vis');
+}
+document.addEventListener('click', e => {
+  if (_ppEl && _ppEl.classList.contains('pp-vis') && !_ppEl.contains(e.target)) _hidePartPopup();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    _hidePartPopup();
+    if (_editMode) _doCancel(false);
+  }
+});
+
+</script>
+</body>
+</html>
